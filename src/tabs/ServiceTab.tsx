@@ -1,27 +1,30 @@
 
 import React, { useState } from 'react';
+import ClientDataSection from '../components/ClientDataSection';
 import FormField from '../components/FormField';
 import ActionButtons from '../components/ActionButtons';
 import { useRawData } from '../hooks/useRawData';
 import { useToast } from '@/hooks/use-toast';
 import { FormData } from '../types';
-import { validateCPF, validateCNPJ, formatCPF, formatCNPJ, formatPhone } from '../utils/validation';
+import { validateCPF, validateCNPJ } from '../utils/validation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Settings, User, Building, Phone, Mail, MapPin } from 'lucide-react';
+import { Settings, Wrench } from 'lucide-react';
 
 const ServiceTab: React.FC = () => {
   const { addEntry } = useRawData();
   const { toast } = useToast();
 
   const [formData, setFormData] = useState<FormData>({
-    motivo: '',
     nomeCliente: '',
+    razaoSocial: '',
     cpfCnpj: '',
     telefone1: '',
     telefone2: '',
     email: '',
     responsavel: '',
+    setorResponsavel: '',
+    dataNascimento: '',
     endereco: '',
     cep: '',
     cidade: '',
@@ -31,8 +34,24 @@ const ServiceTab: React.FC = () => {
     observacaoEndereco: '',
     modelo: '',
     serial: '',
-    descricaoTestes: ''
+    motivo: '',
+    modeloNobreak: '',
+    modeloImpressora: '',
+    documentacaoObrigatoria: false,
+    usoHumanoVeterinario: '',
+    descricaoTestes: '',
+    necessarioAplicacao: false,
+    necessarioLicenca: false,
+    dataAplicacao: ''
   });
+
+  const modeloOptions = [
+    'LABGEO PT1000',
+    'LABGEO PT3000',
+    'LABGEO PT1000 VET',
+    'LABGEO PT3000 VET',
+    'OUTROS'
+  ];
 
   const motivoOptions = [
     'Manutenção Preventiva',
@@ -41,39 +60,83 @@ const ServiceTab: React.FC = () => {
     'Treinamento',
     'Configuração',
     'Atualização de Software',
-    'Suporte Técnico'
+    'Suporte Técnico',
+    'Instalação Inicial'
+  ];
+
+  const usoOptions = [
+    'HUMANO',
+    'VETERINÁRIO'
   ];
 
   const handleFieldChange = (field: keyof FormData, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleCpfCnpjChange = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    let formatted = value;
-    
-    if (numbers.length <= 11) {
-      formatted = formatCPF(value);
-    } else {
-      formatted = formatCNPJ(value);
-    }
-    
-    setFormData(prev => ({ ...prev, cpfCnpj: formatted }));
-  };
-
-  const handlePhoneChange = (field: 'telefone1' | 'telefone2', value: string) => {
-    const formatted = formatPhone(value);
-    setFormData(prev => ({ ...prev, [field]: formatted }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Auto-fill documentation based on motivo
+      if (field === 'motivo') {
+        if (value === 'Instalação Inicial') {
+          newData.documentacaoObrigatoria = true;
+        } else {
+          newData.documentacaoObrigatoria = false;
+          newData.necessarioAplicacao = false;
+          newData.necessarioLicenca = false;
+          newData.dataAplicacao = '';
+        }
+      }
+      
+      return newData;
+    });
   };
 
   const validateForm = (): boolean => {
-    if (!formData.motivo || !formData.nomeCliente || !formData.cpfCnpj || !formData.telefone1 || !formData.email) {
+    const requiredFields = [
+      'razaoSocial', 'cpfCnpj', 'telefone1', 'telefone2', 'email', 'responsavel',
+      'endereco', 'cep', 'cidade', 'estado', 'bairro', 'numero',
+      'modelo', 'serial', 'motivo', 'usoHumanoVeterinario', 'descricaoTestes'
+    ];
+
+    // Check if CPF and birth date
+    const isCPF = formData.cpfCnpj.replace(/\D/g, '').length === 11;
+    if (isCPF && !formData.dataNascimento) {
       toast({
         title: "Erro de Validação",
-        description: "Por favor, preencha todos os campos obrigatórios.",
+        description: "Data de nascimento é obrigatória para CPF.",
         variant: "destructive"
       });
       return false;
+    }
+
+    // Check Instalação Inicial requirements
+    if (formData.motivo === 'Instalação Inicial') {
+      if (!formData.modeloImpressora || !formData.modeloNobreak) {
+        toast({
+          title: "Erro de Validação",
+          description: "Modelo da impressora e nobreak são obrigatórios para Instalação Inicial.",
+          variant: "destructive"
+        });
+        return false;
+      }
+      
+      if (formData.necessarioAplicacao && !formData.dataAplicacao) {
+        toast({
+          title: "Erro de Validação",
+          description: "Data da aplicação é obrigatória quando necessário aplicação.",
+          variant: "destructive"
+        });
+        return false;
+      }
+    }
+
+    for (const field of requiredFields) {
+      if (!formData[field as keyof FormData]) {
+        toast({
+          title: "Erro de Validação",
+          description: "Por favor, preencha todos os campos obrigatórios.",
+          variant: "destructive"
+        });
+        return false;
+      }
     }
 
     const numbers = formData.cpfCnpj.replace(/\D/g, '');
@@ -100,7 +163,6 @@ const ServiceTab: React.FC = () => {
 
   const handleSave = () => {
     if (!validateForm()) return;
-
     addEntry(formData, 'SERVICE');
     toast({
       title: "Sucesso!",
@@ -110,13 +172,15 @@ const ServiceTab: React.FC = () => {
 
   const handleClear = () => {
     setFormData({
-      motivo: '',
       nomeCliente: '',
+      razaoSocial: '',
       cpfCnpj: '',
       telefone1: '',
       telefone2: '',
       email: '',
       responsavel: '',
+      setorResponsavel: '',
+      dataNascimento: '',
       endereco: '',
       cep: '',
       cidade: '',
@@ -126,17 +190,20 @@ const ServiceTab: React.FC = () => {
       observacaoEndereco: '',
       modelo: '',
       serial: '',
-      descricaoTestes: ''
-    });
-    toast({
-      title: "Formulário Limpo",
-      description: "Todos os campos foram limpos.",
+      motivo: '',
+      modeloNobreak: '',
+      modeloImpressora: '',
+      documentacaoObrigatoria: false,
+      usoHumanoVeterinario: '',
+      descricaoTestes: '',
+      necessarioAplicacao: false,
+      necessarioLicenca: false,
+      dataAplicacao: ''
     });
   };
 
   const handleSend = () => {
     if (!validateForm()) return;
-    
     addEntry(formData, 'SERVICE');
     toast({
       title: "Enviado!",
@@ -167,190 +234,133 @@ const ServiceTab: React.FC = () => {
           </CardHeader>
         </Card>
 
-        {/* Form */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column */}
-          <div className="space-y-6">
-            {/* Service Data */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
-                <div className="flex items-center gap-3">
-                  <Settings className="w-5 h-5" />
-                  <CardTitle className="text-lg">DADOS DO SERVIÇO</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                <FormField
-                  label="MOTIVO"
-                  value={formData.motivo}
-                  onChange={(value) => handleFieldChange('motivo', value as string)}
-                  type="select"
-                  options={motivoOptions}
-                  required
-                />
+        {/* Client Data Section */}
+        <ClientDataSection 
+          formData={formData}
+          onFieldChange={handleFieldChange}
+          showBirthDate={true}
+          showSector={true}
+        />
 
+        {/* Equipment Section */}
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
+            <div className="flex items-center gap-3">
+              <Wrench className="w-5 h-5" />
+              <CardTitle className="text-lg">DADOS DO EQUIPAMENTO</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                label="MODELO"
+                value={formData.modelo || ''}
+                onChange={(value) => handleFieldChange('modelo', value as string)}
+                type="select"
+                options={modeloOptions}
+                required
+              />
+
+              <FormField
+                label="SERIAL"
+                value={formData.serial || ''}
+                onChange={(value) => handleFieldChange('serial', value as string)}
+                maxLength={50}
+                autoFormat
+                required
+              />
+            </div>
+
+            <FormField
+              label="MOTIVO DA SOLICITAÇÃO"
+              value={formData.motivo || ''}
+              onChange={(value) => handleFieldChange('motivo', value as string)}
+              type="select"
+              options={motivoOptions}
+              required
+            />
+
+            {formData.motivo === 'Instalação Inicial' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
-                  label="MODELO"
-                  value={formData.modelo || ''}
-                  onChange={(value) => handleFieldChange('modelo', value as string)}
+                  label="MODELO NOBREAK"
+                  value={formData.modeloNobreak || ''}
+                  onChange={(value) => handleFieldChange('modeloNobreak', value as string)}
                   maxLength={50}
+                  autoFormat
+                  required
                 />
 
                 <FormField
-                  label="SERIAL"
-                  value={formData.serial || ''}
-                  onChange={(value) => handleFieldChange('serial', value as string)}
+                  label="MODELO DE IMPRESSORA"
+                  value={formData.modeloImpressora || ''}
+                  onChange={(value) => handleFieldChange('modeloImpressora', value as string)}
                   maxLength={50}
-                />
-
-                <FormField
-                  label="DESCRIÇÃO / TESTES"
-                  value={formData.descricaoTestes || ''}
-                  onChange={(value) => handleFieldChange('descricaoTestes', value as string)}
-                  type="textarea"
-                  maxLength={500}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Client Data */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg">
-                <div className="flex items-center gap-3">
-                  <User className="w-5 h-5" />
-                  <CardTitle className="text-lg">DADOS DO CLIENTE</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                <FormField
-                  label="NOME DO CLIENTE"
-                  value={formData.nomeCliente}
-                  onChange={(value) => handleFieldChange('nomeCliente', value as string)}
-                  required
-                  maxLength={100}
-                />
-
-                <FormField
-                  label="CPF/CNPJ"
-                  value={formData.cpfCnpj}
-                  onChange={handleCpfCnpjChange}
-                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  autoFormat
                   required
                 />
+              </div>
+            )}
 
-                <FormField
-                  label="RESPONSÁVEL PARA CONTATO"
-                  value={formData.responsavel}
-                  onChange={(value) => handleFieldChange('responsavel', value as string)}
-                  required
-                  maxLength={80}
-                />
-              </CardContent>
-            </Card>
-          </div>
+            <FormField
+              label="DOCUMENTAÇÃO OBRIGATÓRIA"
+              value={formData.documentacaoObrigatoria || false}
+              onChange={(value) => handleFieldChange('documentacaoObrigatoria', value)}
+              type="checkbox"
+              placeholder="Documentação obrigatória conforme motivo selecionado"
+            />
 
-          {/* Right Column */}
-          <div className="space-y-6">
-            {/* Contact Data */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
-                <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5" />
-                  <CardTitle className="text-lg">DADOS DE CONTATO</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                <FormField
-                  label="TELEFONE PRINCIPAL"
-                  value={formData.telefone1}
-                  onChange={(value) => handlePhoneChange('telefone1', value as string)}
-                  type="tel"
-                  placeholder="(00) 00000-0000"
-                  required
-                />
+            <FormField
+              label="MODO DE USO DO EQUIPAMENTO"
+              value={formData.usoHumanoVeterinario || ''}
+              onChange={(value) => handleFieldChange('usoHumanoVeterinario', value as string)}
+              type="select"
+              options={usoOptions}
+              required
+            />
 
-                <FormField
-                  label="TELEFONE SECUNDÁRIO"
-                  value={formData.telefone2 || ''}
-                  onChange={(value) => handlePhoneChange('telefone2', value as string)}
-                  type="tel"
-                  placeholder="(00) 00000-0000"
-                />
-
-                <FormField
-                  label="E-MAIL"
-                  value={formData.email}
-                  onChange={(value) => handleFieldChange('email', value as string)}
-                  type="email"
-                  required
-                  maxLength={80}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Address Data */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-t-lg">
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5" />
-                  <CardTitle className="text-lg">ENDEREÇO</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                <FormField
-                  label="ENDEREÇO"
-                  value={formData.endereco}
-                  onChange={(value) => handleFieldChange('endereco', value as string)}
-                  maxLength={100}
-                />
-
+            {formData.motivo === 'Instalação Inicial' && (
+              <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
-                    label="CEP"
-                    value={formData.cep || ''}
-                    onChange={(value) => handleFieldChange('cep', value as string)}
+                    label=""
+                    value={formData.necessarioAplicacao || false}
+                    onChange={(value) => handleFieldChange('necessarioAplicacao', value)}
+                    type="checkbox"
+                    placeholder="Necessário aplicação"
                   />
+
                   <FormField
-                    label="NÚMERO"
-                    value={formData.numero || ''}
-                    onChange={(value) => handleFieldChange('numero', value as string)}
-                    maxLength={10}
+                    label=""
+                    value={formData.necessarioLicenca || false}
+                    onChange={(value) => handleFieldChange('necessarioLicenca', value)}
+                    type="checkbox"
+                    placeholder="Necessário licença"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {formData.necessarioAplicacao && (
                   <FormField
-                    label="CIDADE"
-                    value={formData.cidade || ''}
-                    onChange={(value) => handleFieldChange('cidade', value as string)}
-                    maxLength={50}
+                    label="DATA DA APLICAÇÃO"
+                    value={formData.dataAplicacao || ''}
+                    onChange={(value) => handleFieldChange('dataAplicacao', value as string)}
+                    type="date"
+                    required
                   />
-                  <FormField
-                    label="ESTADO"
-                    value={formData.estado || ''}
-                    onChange={(value) => handleFieldChange('estado', value as string)}
-                    maxLength={2}
-                  />
-                </div>
+                )}
+              </div>
+            )}
 
-                <FormField
-                  label="BAIRRO"
-                  value={formData.bairro || ''}
-                  onChange={(value) => handleFieldChange('bairro', value as string)}
-                  maxLength={50}
-                />
-
-                <FormField
-                  label="OBSERVAÇÃO ENDEREÇO"
-                  value={formData.observacaoEndereco || ''}
-                  onChange={(value) => handleFieldChange('observacaoEndereco', value as string)}
-                  type="textarea"
-                  maxLength={200}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+            <FormField
+              label="DESCRIÇÃO/TESTES"
+              value={formData.descricaoTestes || ''}
+              onChange={(value) => handleFieldChange('descricaoTestes', value as string)}
+              type="textarea"
+              maxLength={500}
+              required
+            />
+          </CardContent>
+        </Card>
 
         {/* Action Buttons */}
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">

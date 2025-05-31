@@ -12,7 +12,7 @@ interface FormFieldProps {
   label: string;
   value: string | boolean;
   onChange: (value: string | boolean) => void;
-  type?: 'text' | 'email' | 'tel' | 'textarea' | 'select' | 'checkbox' | 'cep' | 'cpf-cnpj';
+  type?: 'text' | 'email' | 'tel' | 'textarea' | 'select' | 'checkbox' | 'date' | 'cep' | 'cpf-cnpj';
   options?: string[];
   placeholder?: string;
   required?: boolean;
@@ -43,7 +43,7 @@ const FormField: React.FC<FormFieldProps> = ({
   const handleInputChange = (inputValue: string) => {
     let formattedValue = inputValue;
     
-    if (autoFormat) {
+    if (autoFormat && type !== 'email') {
       formattedValue = inputValue.toUpperCase();
     }
     
@@ -71,11 +71,11 @@ const FormField: React.FC<FormFieldProps> = ({
   const renderField = () => {
     const baseInputClass = cn(
       "w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 ease-in-out",
-      "bg-white/80 backdrop-blur-sm placeholder:text-gray-400",
+      "bg-white/90 backdrop-blur-sm placeholder:text-gray-500",
       focused 
         ? "border-blue-500 shadow-xl shadow-blue-500/20 ring-4 ring-blue-500/10" 
-        : "border-gray-200 hover:border-gray-300",
-      !isValid && "border-red-300 shadow-red-500/20",
+        : "border-gray-300 hover:border-gray-400",
+      !isValid && "border-red-400 shadow-red-500/20",
       "focus:outline-none text-gray-900 font-medium",
       className
     );
@@ -98,7 +98,7 @@ const FormField: React.FC<FormFieldProps> = ({
                 {getStatusIcon()}
               </div>
               {maxLength && (
-                <div className="text-xs text-gray-400 ml-auto">
+                <div className="text-xs text-gray-500 ml-auto">
                   {(value as string).length}/{maxLength}
                 </div>
               )}
@@ -109,10 +109,10 @@ const FormField: React.FC<FormFieldProps> = ({
       case 'select':
         return (
           <Select value={value as string} onValueChange={onChange}>
-            <SelectTrigger className={cn(baseInputClass, "h-12 text-left")}>
+            <SelectTrigger className={cn(baseInputClass, "h-12 text-left bg-white/90")}>
               <SelectValue placeholder={placeholder || "Selecione uma opção..."} />
             </SelectTrigger>
-            <SelectContent className="bg-white/95 backdrop-blur-xl border-2 border-gray-100 shadow-2xl z-50 max-h-60 rounded-xl">
+            <SelectContent className="bg-white/95 backdrop-blur-xl border-2 border-gray-200 shadow-2xl z-50 max-h-60 rounded-xl">
               {options.map((option) => (
                 <SelectItem 
                   key={option} 
@@ -128,13 +128,30 @@ const FormField: React.FC<FormFieldProps> = ({
       
       case 'checkbox':
         return (
-          <div className="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 hover:border-blue-300 transition-all duration-300">
+          <div className="flex items-center space-x-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 hover:border-blue-300 transition-all duration-300">
             <Checkbox
               checked={value as boolean}
               onCheckedChange={(checked) => onChange(!!checked)}
               className="w-5 h-5 rounded-md border-2 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
             />
             <span className="text-sm font-medium text-gray-700 select-none">{placeholder}</span>
+          </div>
+        );
+
+      case 'date':
+        return (
+          <div className="relative">
+            <Input
+              type="date"
+              value={value as string}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              className={cn(baseInputClass, "h-12")}
+            />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              {getStatusIcon()}
+            </div>
           </div>
         );
 

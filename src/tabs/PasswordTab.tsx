@@ -1,27 +1,30 @@
 
 import React, { useState } from 'react';
+import ClientDataSection from '../components/ClientDataSection';
 import FormField from '../components/FormField';
 import ActionButtons from '../components/ActionButtons';
 import { useRawData } from '../hooks/useRawData';
 import { useToast } from '@/hooks/use-toast';
 import { FormData } from '../types';
-import { validateCPF, validateCNPJ, formatCPF, formatCNPJ, formatPhone } from '../utils/validation';
+import { validateCPF, validateCNPJ } from '../utils/validation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Key, User, Building, Phone, Mail, MapPin } from 'lucide-react';
+import { Key, Wrench } from 'lucide-react';
 
 const PasswordTab: React.FC = () => {
   const { addEntry } = useRawData();
   const { toast } = useToast();
 
   const [formData, setFormData] = useState<FormData>({
-    motivo: 'Senha',
     nomeCliente: '',
+    razaoSocial: '',
     cpfCnpj: '',
     telefone1: '',
     telefone2: '',
     email: '',
     responsavel: '',
+    setorResponsavel: '',
+    dataNascimento: '',
     endereco: '',
     cep: '',
     cidade: '',
@@ -30,39 +33,74 @@ const PasswordTab: React.FC = () => {
     numero: '',
     observacaoEndereco: '',
     modelo: '',
-    serial: ''
+    serial: '',
+    motivo: '',
+    previsaoFaturamento: '',
+    numeroBO: '',
+    documentacaoObrigatoria: false,
+    descricaoTestes: ''
   });
 
+  const modeloOptions = [
+    'LABGEO PT1000',
+    'LABGEO PT3000',
+    'LABGEO PT1000 VET',
+    'LABGEO PT3000 VET',
+    'OUTROS'
+  ];
+
+  const motivoOptions = [
+    'Licença Permanente',
+    'Licença Temporária',
+    'Licença Teste',
+    'Renovação de Licença',
+    'Transferência de Licença'
+  ];
+
   const handleFieldChange = (field: keyof FormData, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleCpfCnpjChange = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    let formatted = value;
-    
-    if (numbers.length <= 11) {
-      formatted = formatCPF(value);
-    } else {
-      formatted = formatCNPJ(value);
-    }
-    
-    setFormData(prev => ({ ...prev, cpfCnpj: formatted }));
-  };
-
-  const handlePhoneChange = (field: 'telefone1' | 'telefone2', value: string) => {
-    const formatted = formatPhone(value);
-    setFormData(prev => ({ ...prev, [field]: formatted }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Auto-fill documentation based on motivo
+      if (field === 'motivo') {
+        if (value === 'Licença Permanente' || value === 'Licença Temporária') {
+          newData.documentacaoObrigatoria = true;
+        } else {
+          newData.documentacaoObrigatoria = false;
+        }
+      }
+      
+      return newData;
+    });
   };
 
   const validateForm = (): boolean => {
-    if (!formData.nomeCliente || !formData.cpfCnpj || !formData.telefone1 || !formData.email) {
+    const requiredFields = [
+      'razaoSocial', 'cpfCnpj', 'telefone1', 'telefone2', 'email', 'responsavel',
+      'endereco', 'cep', 'cidade', 'estado', 'bairro', 'numero',
+      'modelo', 'serial', 'motivo', 'previsaoFaturamento', 'numeroBO', 'descricaoTestes'
+    ];
+
+    // Check if CPF and birth date
+    const isCPF = formData.cpfCnpj.replace(/\D/g, '').length === 11;
+    if (isCPF && !formData.dataNascimento) {
       toast({
         title: "Erro de Validação",
-        description: "Por favor, preencha todos os campos obrigatórios.",
+        description: "Data de nascimento é obrigatória para CPF.",
         variant: "destructive"
       });
       return false;
+    }
+
+    for (const field of requiredFields) {
+      if (!formData[field as keyof FormData]) {
+        toast({
+          title: "Erro de Validação",
+          description: "Por favor, preencha todos os campos obrigatórios.",
+          variant: "destructive"
+        });
+        return false;
+      }
     }
 
     const numbers = formData.cpfCnpj.replace(/\D/g, '');
@@ -89,23 +127,24 @@ const PasswordTab: React.FC = () => {
 
   const handleSave = () => {
     if (!validateForm()) return;
-
     addEntry(formData, 'PASSWORD');
     toast({
       title: "Sucesso!",
-      description: "Solicitação de senha salva com sucesso.",
+      description: "Solicitação de licença salva com sucesso.",
     });
   };
 
   const handleClear = () => {
     setFormData({
-      motivo: 'Senha',
       nomeCliente: '',
+      razaoSocial: '',
       cpfCnpj: '',
       telefone1: '',
       telefone2: '',
       email: '',
       responsavel: '',
+      setorResponsavel: '',
+      dataNascimento: '',
       endereco: '',
       cep: '',
       cidade: '',
@@ -114,21 +153,21 @@ const PasswordTab: React.FC = () => {
       numero: '',
       observacaoEndereco: '',
       modelo: '',
-      serial: ''
-    });
-    toast({
-      title: "Formulário Limpo",
-      description: "Todos os campos foram limpos.",
+      serial: '',
+      motivo: '',
+      previsaoFaturamento: '',
+      numeroBO: '',
+      documentacaoObrigatoria: false,
+      descricaoTestes: ''
     });
   };
 
   const handleSend = () => {
     if (!validateForm()) return;
-    
     addEntry(formData, 'PASSWORD');
     toast({
       title: "Enviado!",
-      description: "Solicitação de senha enviada com sucesso.",
+      description: "Solicitação de licença enviada com sucesso.",
     });
   };
 
@@ -143,8 +182,8 @@ const PasswordTab: React.FC = () => {
                 <Key className="w-8 h-8" />
               </div>
               <div>
-                <CardTitle className="text-2xl font-bold">GESTÃO DE SENHAS</CardTitle>
-                <p className="text-orange-100">Controle seguro de credenciais e acessos</p>
+                <CardTitle className="text-2xl font-bold">PASSWORD/LICENÇA</CardTitle>
+                <p className="text-orange-100">Controle de licenças e credenciais</p>
               </div>
               <div className="ml-auto">
                 <Badge variant="secondary" className="bg-white/20 text-white border-0">
@@ -155,173 +194,89 @@ const PasswordTab: React.FC = () => {
           </CardHeader>
         </Card>
 
-        {/* Form */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column */}
-          <div className="space-y-6">
-            {/* Client Data */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
-                <div className="flex items-center gap-3">
-                  <User className="w-5 h-5" />
-                  <CardTitle className="text-lg">DADOS DO CLIENTE</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                <FormField
-                  label="NOME DO CLIENTE"
-                  value={formData.nomeCliente}
-                  onChange={(value) => handleFieldChange('nomeCliente', value as string)}
-                  required
-                  maxLength={100}
-                />
+        {/* Client Data Section */}
+        <ClientDataSection 
+          formData={formData}
+          onFieldChange={handleFieldChange}
+          showBirthDate={true}
+          showSector={true}
+        />
 
-                <FormField
-                  label="CPF/CNPJ"
-                  value={formData.cpfCnpj}
-                  onChange={handleCpfCnpjChange}
-                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                  required
-                />
+        {/* Equipment Section */}
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-red-600 to-red-700 text-white rounded-t-lg">
+            <div className="flex items-center gap-3">
+              <Wrench className="w-5 h-5" />
+              <CardTitle className="text-lg">DADOS DO EQUIPAMENTO</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                label="MODELO"
+                value={formData.modelo || ''}
+                onChange={(value) => handleFieldChange('modelo', value as string)}
+                type="select"
+                options={modeloOptions}
+                required
+              />
 
-                <FormField
-                  label="RESPONSÁVEL PARA CONTATO"
-                  value={formData.responsavel}
-                  onChange={(value) => handleFieldChange('responsavel', value as string)}
-                  required
-                  maxLength={80}
-                />
-              </CardContent>
-            </Card>
+              <FormField
+                label="SERIAL"
+                value={formData.serial || ''}
+                onChange={(value) => handleFieldChange('serial', value as string)}
+                maxLength={50}
+                autoFormat
+                required
+              />
+            </div>
 
-            {/* Contact Data */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg">
-                <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5" />
-                  <CardTitle className="text-lg">DADOS DE CONTATO</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                <FormField
-                  label="TELEFONE PRINCIPAL"
-                  value={formData.telefone1}
-                  onChange={(value) => handlePhoneChange('telefone1', value as string)}
-                  type="tel"
-                  placeholder="(00) 00000-0000"
-                  required
-                />
+            <FormField
+              label="MOTIVO DA SOLICITAÇÃO"
+              value={formData.motivo || ''}
+              onChange={(value) => handleFieldChange('motivo', value as string)}
+              type="select"
+              options={motivoOptions}
+              required
+            />
 
-                <FormField
-                  label="TELEFONE SECUNDÁRIO"
-                  value={formData.telefone2 || ''}
-                  onChange={(value) => handlePhoneChange('telefone2', value as string)}
-                  type="tel"
-                  placeholder="(00) 00000-0000"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                label="PREVISÃO DE FATURAMENTO"
+                value={formData.previsaoFaturamento || ''}
+                onChange={(value) => handleFieldChange('previsaoFaturamento', value as string)}
+                type="date"
+                required
+              />
 
-                <FormField
-                  label="E-MAIL"
-                  value={formData.email}
-                  onChange={(value) => handleFieldChange('email', value as string)}
-                  type="email"
-                  required
-                  maxLength={80}
-                />
-              </CardContent>
-            </Card>
-          </div>
+              <FormField
+                label="BO"
+                value={formData.numeroBO || ''}
+                onChange={(value) => handleFieldChange('numeroBO', value as string)}
+                maxLength={50}
+                autoFormat
+                required
+              />
+            </div>
 
-          {/* Right Column */}
-          <div className="space-y-6">
-            {/* Equipment Data */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
-                <div className="flex items-center gap-3">
-                  <Building className="w-5 h-5" />
-                  <CardTitle className="text-lg">DADOS DO EQUIPAMENTO</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                <FormField
-                  label="MODELO"
-                  value={formData.modelo || ''}
-                  onChange={(value) => handleFieldChange('modelo', value as string)}
-                  maxLength={50}
-                />
+            <FormField
+              label="DOCUMENTAÇÃO OBRIGATÓRIA"
+              value={formData.documentacaoObrigatoria || false}
+              onChange={(value) => handleFieldChange('documentacaoObrigatoria', value)}
+              type="checkbox"
+              placeholder="Documentação obrigatória conforme motivo selecionado"
+            />
 
-                <FormField
-                  label="SERIAL"
-                  value={formData.serial || ''}
-                  onChange={(value) => handleFieldChange('serial', value as string)}
-                  maxLength={50}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Address Data */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-t-lg">
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5" />
-                  <CardTitle className="text-lg">ENDEREÇO</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                <FormField
-                  label="ENDEREÇO"
-                  value={formData.endereco}
-                  onChange={(value) => handleFieldChange('endereco', value as string)}
-                  maxLength={100}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    label="CEP"
-                    value={formData.cep || ''}
-                    onChange={(value) => handleFieldChange('cep', value as string)}
-                  />
-                  <FormField
-                    label="NÚMERO"
-                    value={formData.numero || ''}
-                    onChange={(value) => handleFieldChange('numero', value as string)}
-                    maxLength={10}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    label="CIDADE"
-                    value={formData.cidade || ''}
-                    onChange={(value) => handleFieldChange('cidade', value as string)}
-                    maxLength={50}
-                  />
-                  <FormField
-                    label="ESTADO"
-                    value={formData.estado || ''}
-                    onChange={(value) => handleFieldChange('estado', value as string)}
-                    maxLength={2}
-                  />
-                </div>
-
-                <FormField
-                  label="BAIRRO"
-                  value={formData.bairro || ''}
-                  onChange={(value) => handleFieldChange('bairro', value as string)}
-                  maxLength={50}
-                />
-
-                <FormField
-                  label="OBSERVAÇÃO ENDEREÇO"
-                  value={formData.observacaoEndereco || ''}
-                  onChange={(value) => handleFieldChange('observacaoEndereco', value as string)}
-                  type="textarea"
-                  maxLength={200}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+            <FormField
+              label="DESCRIÇÃO"
+              value={formData.descricaoTestes || ''}
+              onChange={(value) => handleFieldChange('descricaoTestes', value as string)}
+              type="textarea"
+              maxLength={500}
+              required
+            />
+          </CardContent>
+        </Card>
 
         {/* Action Buttons */}
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">

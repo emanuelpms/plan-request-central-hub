@@ -1,40 +1,39 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import FormField from '../components/FormField';
 import ActionButtons from '../components/ActionButtons';
 import { useRawData } from '../hooks/useRawData';
-import { useViaCEP } from '../hooks/useViaCEP';
-import { useCNPJ } from '../hooks/useCNPJ';
 import { useToast } from '@/hooks/use-toast';
 import { FormData } from '../types';
-import { 
-  validateCPF, 
-  validateCNPJ, 
-  formatCPF, 
-  formatCNPJ, 
-  formatPhone, 
-  formatCEP,
-  formatUpperCase,
-  validateEmail 
-} from '../utils/validation';
+import { validateCPF, validateCNPJ, formatCPF, formatCNPJ, formatPhone, formatCEP } from '../utils/validation';
+import { useViaCEP } from '../hooks/useViaCEP';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, MapPin, User, Building, Phone, Mail } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Monitor, Copy, Plus, X } from 'lucide-react';
+
+interface ClienteAdicional {
+  id: string;
+  numeroBO: string;
+  nomeCliente: string;
+  dataInicio: string;
+  dataFim: string;
+}
 
 const DemonstracaoTab: React.FC = () => {
   const { addEntry } = useRawData();
-  const { fetchAddress, loading: cepLoading } = useViaCEP();
-  const { fetchCNPJData, loading: cnpjLoading } = useCNPJ();
   const { toast } = useToast();
+  const { fetchAddress, loading } = useViaCEP();
 
   const [formData, setFormData] = useState<FormData>({
-    motivo: 'DEMONSTRAÇÃO',
+    // Dados para emissão NF
     nomeCliente: '',
+    razaoSocial: '',
     cpfCnpj: '',
     telefone1: '',
     telefone2: '',
-    email: '',
     responsavel: '',
+    email: '',
     endereco: '',
     cep: '',
     cidade: '',
@@ -42,21 +41,71 @@ const DemonstracaoTab: React.FC = () => {
     bairro: '',
     numero: '',
     observacaoEndereco: '',
-    justificativa: '',
+    
+    // Dados para entrega
+    nomeClienteEntrega: '',
+    razaoSocialEntrega: '',
+    cpfCnpjEntrega: '',
+    telefone1Entrega: '',
+    telefone2Entrega: '',
+    responsavelEntrega: '',
+    emailEntrega: '',
+    enderecoEntrega: '',
+    cepEntrega: '',
+    cidadeEntrega: '',
+    estadoEntrega: '',
+    bairroEntrega: '',
+    numeroEntrega: '',
+    observacaoEnderecoEntrega: '',
+    
+    // Dados do equipamento
     modelo: '',
-    previsaoFaturamento: '',
+    justificativaDemo: '',
+    descricaoEquipamento: '',
     dataInicial: '',
     dataFinal: '',
-    ativo: true,
-    primeiraAplicacao: false,
-    noLocalizado: false
+    ativo: '',
+    necessarioApplicationSamsung: '',
+    usoHumanoVeterinario: '',
+    
+    // Cliente adicional principal
+    numeroBO: '',
+    nomeClienteAdicional: '',
+    cronogramaInicio: '',
+    cronogramaFim: ''
   });
+
+  const [clientesAdicionais, setClientesAdicionais] = useState<ClienteAdicional[]>([]);
+
+  const modeloOptions = [
+    'LABGEO PT1000',
+    'LABGEO PT3000',
+    'LABGEO PT1000 VET',
+    'LABGEO PT3000 VET',
+    'OUTROS'
+  ];
+
+  const ativoOptions = [
+    'Samsung',
+    'Representante',
+    'Cliente'
+  ];
+
+  const necessarioOptions = [
+    'Sim',
+    'Não'
+  ];
+
+  const usoOptions = [
+    'HUMANO',
+    'VETERINÁRIO'
+  ];
 
   const handleFieldChange = (field: keyof FormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleCpfCnpjChange = async (value: string) => {
+  const handleCpfCnpjChange = (field: 'cpfCnpj' | 'cpfCnpjEntrega', value: string) => {
     const numbers = value.replace(/\D/g, '');
     let formatted = value;
     
@@ -64,97 +113,162 @@ const DemonstracaoTab: React.FC = () => {
       formatted = formatCPF(value);
     } else {
       formatted = formatCNPJ(value);
-      
-      // Se é CNPJ completo, buscar dados
-      if (numbers.length === 14) {
-        const cnpjData = await fetchCNPJData(formatted);
-        if (cnpjData && cnpjData.nome) {
-          setFormData(prev => ({
-            ...prev,
-            cpfCnpj: formatted,
-            nomeCliente: formatUpperCase(cnpjData.nome || ''),
-            endereco: formatUpperCase(cnpjData.logradouro || ''),
-            numero: cnpjData.numero || '',
-            bairro: formatUpperCase(cnpjData.bairro || ''),
-            cidade: formatUpperCase(cnpjData.municipio || ''),
-            estado: cnpjData.uf || '',
-            cep: cnpjData.cep ? formatCEP(cnpjData.cep) : '',
-            telefone1: cnpjData.telefone ? formatPhone(cnpjData.telefone) : '',
-            email: cnpjData.email || ''
-          }));
-          toast({
-            title: "CNPJ Encontrado!",
-            description: "Dados da empresa foram preenchidos automaticamente.",
-          });
-          return;
-        }
-      }
     }
     
-    setFormData(prev => ({ ...prev, cpfCnpj: formatted }));
+    setFormData(prev => ({ ...prev, [field]: formatted }));
   };
 
-  const handleCEPChange = async (value: string) => {
-    const formatted = formatCEP(value);
-    setFormData(prev => ({ ...prev, cep: formatted }));
-    
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length === 8) {
-      const addressData = await fetchAddress(formatted);
-      if (addressData) {
-        setFormData(prev => ({
-          ...prev,
-          endereco: formatUpperCase(addressData.logradouro),
-          bairro: formatUpperCase(addressData.bairro),
-          cidade: formatUpperCase(addressData.localidade),
-          estado: addressData.uf
-        }));
-        toast({
-          title: "CEP Encontrado!",
-          description: "Endereço preenchido automaticamente.",
-        });
-      }
-    }
-  };
-
-  const handlePhoneChange = (field: 'telefone1' | 'telefone2', value: string) => {
+  const handlePhoneChange = (field: 'telefone1' | 'telefone2' | 'telefone1Entrega' | 'telefone2Entrega', value: string) => {
     const formatted = formatPhone(value);
     setFormData(prev => ({ ...prev, [field]: formatted }));
   };
 
+  const handleCepChange = async (field: 'cep' | 'cepEntrega', value: string) => {
+    const formatted = formatCEP(value);
+    setFormData(prev => ({ ...prev, [field]: formatted }));
+    
+    const cleanCEP = formatted.replace(/\D/g, '');
+    if (cleanCEP.length === 8) {
+      const addressData = await fetchAddress(cleanCEP);
+      if (addressData) {
+        if (field === 'cep') {
+          setFormData(prev => ({
+            ...prev,
+            endereco: addressData.logradouro,
+            bairro: addressData.bairro,
+            cidade: addressData.localidade,
+            estado: addressData.uf
+          }));
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            enderecoEntrega: addressData.logradouro,
+            bairroEntrega: addressData.bairro,
+            cidadeEntrega: addressData.localidade,
+            estadoEntrega: addressData.uf
+          }));
+        }
+      }
+    }
+  };
+
+  const copyToEntrega = () => {
+    setFormData(prev => ({
+      ...prev,
+      nomeClienteEntrega: prev.nomeCliente,
+      razaoSocialEntrega: prev.razaoSocial,
+      cpfCnpjEntrega: prev.cpfCnpj,
+      telefone1Entrega: prev.telefone1,
+      telefone2Entrega: prev.telefone2,
+      responsavelEntrega: prev.responsavel,
+      emailEntrega: prev.email,
+      enderecoEntrega: prev.endereco,
+      cepEntrega: prev.cep,
+      cidadeEntrega: prev.cidade,
+      estadoEntrega: prev.estado,
+      bairroEntrega: prev.bairro,
+      numeroEntrega: prev.numero,
+      observacaoEnderecoEntrega: prev.observacaoEndereco
+    }));
+    
+    toast({
+      title: "Dados Copiados!",
+      description: "Dados de emissão NF copiados para entrega.",
+    });
+  };
+
+  const adicionarCliente = () => {
+    if (!formData.numeroBO || !formData.nomeClienteAdicional || !formData.cronogramaInicio || !formData.cronogramaFim) {
+      toast({
+        title: "Erro",
+        description: "Preencha todos os campos do cliente adicional.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const novoCliente: ClienteAdicional = {
+      id: Date.now().toString(),
+      numeroBO: formData.numeroBO,
+      nomeCliente: formData.nomeClienteAdicional,
+      dataInicio: formData.cronogramaInicio,
+      dataFim: formData.cronogramaFim
+    };
+
+    setClientesAdicionais(prev => [...prev, novoCliente]);
+    
+    // Limpar campos
+    setFormData(prev => ({
+      ...prev,
+      numeroBO: '',
+      nomeClienteAdicional: '',
+      cronogramaInicio: '',
+      cronogramaFim: ''
+    }));
+
+    toast({
+      title: "Cliente Adicionado!",
+      description: "Cliente adicional foi adicionado com sucesso.",
+    });
+  };
+
+  const removerCliente = (id: string) => {
+    setClientesAdicionais(prev => prev.filter(cliente => cliente.id !== id));
+  };
+
   const validateForm = (): boolean => {
-    if (!formData.nomeCliente || !formData.cpfCnpj || !formData.telefone1 || !formData.email || !formData.justificativa) {
-      toast({
-        title: "Erro de Validação",
-        description: "Por favor, preencha todos os campos obrigatórios.",
-        variant: "destructive"
-      });
-      return false;
+    const requiredFields = [
+      'razaoSocial', 'cpfCnpj', 'telefone1', 'telefone2', 'responsavel', 'email',
+      'endereco', 'cep', 'cidade', 'estado', 'bairro', 'numero',
+      'razaoSocialEntrega', 'cpfCnpjEntrega', 'telefone1Entrega', 'telefone2Entrega', 'responsavelEntrega', 'emailEntrega',
+      'enderecoEntrega', 'cepEntrega', 'cidadeEntrega', 'estadoEntrega', 'bairroEntrega', 'numeroEntrega',
+      'modelo', 'justificativaDemo', 'descricaoEquipamento', 'dataInicial', 'dataFinal',
+      'ativo', 'necessarioApplicationSamsung', 'usoHumanoVeterinario'
+    ];
+
+    for (const field of requiredFields) {
+      if (!formData[field as keyof FormData]) {
+        toast({
+          title: "Erro de Validação",
+          description: "Por favor, preencha todos os campos obrigatórios.",
+          variant: "destructive"
+        });
+        return false;
+      }
     }
 
-    if (!validateEmail(formData.email)) {
-      toast({
-        title: "Email Inválido",
-        description: "Por favor, insira um email válido.",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    const numbers = formData.cpfCnpj.replace(/\D/g, '');
-    if (numbers.length === 11 && !validateCPF(formData.cpfCnpj)) {
+    // Validate CPF/CNPJ for both sections
+    const numbers1 = formData.cpfCnpj.replace(/\D/g, '');
+    if (numbers1.length === 11 && !validateCPF(formData.cpfCnpj)) {
       toast({
         title: "CPF Inválido",
-        description: "Por favor, insira um CPF válido.",
+        description: "Por favor, insira um CPF válido para emissão NF.",
+        variant: "destructive"
+      });
+      return false;
+    }
+    if (numbers1.length === 14 && !validateCNPJ(formData.cpfCnpj)) {
+      toast({
+        title: "CNPJ Inválido",
+        description: "Por favor, insira um CNPJ válido para emissão NF.",
         variant: "destructive"
       });
       return false;
     }
 
-    if (numbers.length === 14 && !validateCNPJ(formData.cpfCnpj)) {
+    const numbers2 = formData.cpfCnpjEntrega?.replace(/\D/g, '') || '';
+    if (numbers2.length === 11 && !validateCPF(formData.cpfCnpjEntrega || '')) {
+      toast({
+        title: "CPF Inválido",
+        description: "Por favor, insira um CPF válido para entrega.",
+        variant: "destructive"
+      });
+      return false;
+    }
+    if (numbers2.length === 14 && !validateCNPJ(formData.cpfCnpjEntrega || '')) {
       toast({
         title: "CNPJ Inválido",
-        description: "Por favor, insira um CNPJ válido.",
+        description: "Por favor, insira um CNPJ válido para entrega.",
         variant: "destructive"
       });
       return false;
@@ -165,8 +279,8 @@ const DemonstracaoTab: React.FC = () => {
 
   const handleSave = () => {
     if (!validateForm()) return;
-
-    addEntry(formData, 'DEMONSTRACAO');
+    const dataToSave = { ...formData, clientesAdicionais };
+    addEntry(dataToSave, 'DEMONSTRACAO');
     toast({
       title: "Sucesso!",
       description: "Solicitação de demonstração salva com sucesso.",
@@ -175,13 +289,13 @@ const DemonstracaoTab: React.FC = () => {
 
   const handleClear = () => {
     setFormData({
-      motivo: 'DEMONSTRAÇÃO',
       nomeCliente: '',
+      razaoSocial: '',
       cpfCnpj: '',
       telefone1: '',
       telefone2: '',
-      email: '',
       responsavel: '',
+      email: '',
       endereco: '',
       cep: '',
       cidade: '',
@@ -189,25 +303,40 @@ const DemonstracaoTab: React.FC = () => {
       bairro: '',
       numero: '',
       observacaoEndereco: '',
-      justificativa: '',
+      nomeClienteEntrega: '',
+      razaoSocialEntrega: '',
+      cpfCnpjEntrega: '',
+      telefone1Entrega: '',
+      telefone2Entrega: '',
+      responsavelEntrega: '',
+      emailEntrega: '',
+      enderecoEntrega: '',
+      cepEntrega: '',
+      cidadeEntrega: '',
+      estadoEntrega: '',
+      bairroEntrega: '',
+      numeroEntrega: '',
+      observacaoEnderecoEntrega: '',
       modelo: '',
-      previsaoFaturamento: '',
+      justificativaDemo: '',
+      descricaoEquipamento: '',
       dataInicial: '',
       dataFinal: '',
-      ativo: true,
-      primeiraAplicacao: false,
-      noLocalizado: false
+      ativo: '',
+      necessarioApplicationSamsung: '',
+      usoHumanoVeterinario: '',
+      numeroBO: '',
+      nomeClienteAdicional: '',
+      cronogramaInicio: '',
+      cronogramaFim: ''
     });
-    toast({
-      title: "Formulário Limpo",
-      description: "Todos os campos foram limpos.",
-    });
+    setClientesAdicionais([]);
   };
 
   const handleSend = () => {
     if (!validateForm()) return;
-    
-    addEntry(formData, 'DEMONSTRACAO');
+    const dataToSave = { ...formData, clientesAdicionais };
+    addEntry(dataToSave, 'DEMONSTRACAO');
     toast({
       title: "Enviado!",
       description: "Solicitação de demonstração enviada com sucesso.",
@@ -215,10 +344,10 @@ const DemonstracaoTab: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50 to-emerald-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <Card className="bg-gradient-to-r from-green-600 to-green-700 border-0 shadow-xl text-white">
+        <Card className="bg-gradient-to-r from-emerald-600 to-green-600 border-0 shadow-xl text-white">
           <CardHeader>
             <div className="flex items-center gap-4">
               <div className="p-3 bg-white/20 rounded-xl">
@@ -226,7 +355,7 @@ const DemonstracaoTab: React.FC = () => {
               </div>
               <div>
                 <CardTitle className="text-2xl font-bold">DEMONSTRAÇÃO</CardTitle>
-                <p className="text-green-100">Solicitação de demonstração comercial</p>
+                <p className="text-emerald-100">Agendamento de demonstrações comerciais</p>
               </div>
               <div className="ml-auto">
                 <Badge variant="secondary" className="bg-white/20 text-white border-0">
@@ -237,238 +366,421 @@ const DemonstracaoTab: React.FC = () => {
           </CardHeader>
         </Card>
 
-        {/* Form */}
+        {/* Client Data Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column */}
-          <div className="space-y-6">
-            {/* Client Data */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
-                <div className="flex items-center gap-3">
-                  <User className="w-5 h-5" />
-                  <CardTitle className="text-lg">DADOS DO CLIENTE</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
+          {/* Dados para Emissão NF */}
+          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">DADOS PARA EMISSÃO DA NF</CardTitle>
+                <Button
+                  onClick={copyToEntrega}
+                  size="sm"
+                  variant="secondary"
+                  className="bg-white/20 hover:bg-white/30 text-white border-0"
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copiar para Entrega
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <FormField
+                label="NOME/RAZÃO SOCIAL"
+                value={formData.razaoSocial || ''}
+                onChange={(value) => {
+                  handleFieldChange('razaoSocial', value as string);
+                  handleFieldChange('nomeCliente', value as string);
+                }}
+                required
+                maxLength={100}
+                autoFormat
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
-                  label="NOME DO CLIENTE / RAZÃO SOCIAL"
-                  value={formData.nomeCliente}
-                  onChange={(value) => handleFieldChange('nomeCliente', formatUpperCase(value as string))}
+                  label="TELEFONE 1"
+                  value={formData.telefone1}
+                  onChange={(value) => handlePhoneChange('telefone1', value as string)}
+                  type="tel"
+                  placeholder="(00) 00000-0000"
                   required
-                  autoFormat
-                  maxLength={100}
                 />
 
                 <FormField
-                  label="CPF/CNPJ"
-                  value={formData.cpfCnpj}
-                  onChange={handleCpfCnpjChange}
-                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  label="TELEFONE 2"
+                  value={formData.telefone2 || ''}
+                  onChange={(value) => handlePhoneChange('telefone2', value as string)}
+                  type="tel"
+                  placeholder="(00) 00000-0000"
                   required
-                  loading={cnpjLoading}
                 />
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    label="TELEFONE PRINCIPAL"
-                    value={formData.telefone1}
-                    onChange={(value) => handlePhoneChange('telefone1', value as string)}
-                    type="tel"
-                    placeholder="(00) 00000-0000"
-                    required
-                  />
+              <FormField
+                label="CPF/CNPJ"
+                value={formData.cpfCnpj}
+                onChange={(value) => handleCpfCnpjChange('cpfCnpj', value as string)}
+                placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                required
+              />
 
-                  <FormField
-                    label="TELEFONE SECUNDÁRIO"
-                    value={formData.telefone2 || ''}
-                    onChange={(value) => handlePhoneChange('telefone2', value as string)}
-                    type="tel"
-                    placeholder="(00) 00000-0000"
-                  />
-                </div>
+              <FormField
+                label="RESPONSÁVEL PARA CONTATO"
+                value={formData.responsavel}
+                onChange={(value) => handleFieldChange('responsavel', value as string)}
+                required
+                maxLength={80}
+                autoFormat
+              />
 
-                <FormField
-                  label="RESPONSÁVEL PARA CONTATO"
-                  value={formData.responsavel}
-                  onChange={(value) => handleFieldChange('responsavel', formatUpperCase(value as string))}
-                  required
-                  autoFormat
-                  maxLength={80}
-                />
+              <FormField
+                label="E-MAIL"
+                value={formData.email}
+                onChange={(value) => handleFieldChange('email', value as string)}
+                type="email"
+                required
+                maxLength={80}
+              />
 
-                <FormField
-                  label="E-MAIL"
-                  value={formData.email}
-                  onChange={(value) => handleFieldChange('email', value)}
-                  type="email"
-                  required
-                  maxLength={80}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Address Data */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5" />
-                  <CardTitle className="text-lg">ENDEREÇO</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
+              {/* Endereço NF */}
+              <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
                     label="CEP"
                     value={formData.cep || ''}
-                    onChange={handleCEPChange}
-                    type="cep"
+                    onChange={(value) => handleCepChange('cep', value as string)}
                     placeholder="00000-000"
-                    loading={cepLoading}
-                  />
-                  <FormField
-                    label="NÚMERO"
-                    value={formData.numero || ''}
-                    onChange={(value) => handleFieldChange('numero', value)}
-                    maxLength={10}
-                  />
-                  <div className="md:col-span-1"></div>
-                </div>
-
-                <FormField
-                  label="ENDEREÇO"
-                  value={formData.endereco}
-                  onChange={(value) => handleFieldChange('endereco', formatUpperCase(value as string))}
-                  autoFormat
-                  maxLength={100}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    label="BAIRRO"
-                    value={formData.bairro || ''}
-                    onChange={(value) => handleFieldChange('bairro', formatUpperCase(value as string))}
-                    autoFormat
-                    maxLength={50}
+                    loading={loading}
+                    required
                   />
                   <FormField
                     label="CIDADE"
                     value={formData.cidade || ''}
-                    onChange={(value) => handleFieldChange('cidade', formatUpperCase(value as string))}
-                    autoFormat
+                    onChange={(value) => handleFieldChange('cidade', value as string)}
                     maxLength={50}
+                    autoFormat
+                    required
                   />
-                </div>
-
-                <FormField
-                  label="ESTADO"
-                  value={formData.estado || ''}
-                  onChange={(value) => handleFieldChange('estado', formatUpperCase(value as string))}
-                  autoFormat
-                  maxLength={2}
-                />
-
-                <FormField
-                  label="OBSERVAÇÃO ENDEREÇO"
-                  value={formData.observacaoEndereco || ''}
-                  onChange={(value) => handleFieldChange('observacaoEndereco', formatUpperCase(value as string))}
-                  type="textarea"
-                  autoFormat
-                  maxLength={200}
-                />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column */}
-          <div className="space-y-6">
-            {/* Demo Details */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg">
-                <div className="flex items-center gap-3">
-                  <Building className="w-5 h-5" />
-                  <CardTitle className="text-lg">DADOS PARA DEMONSTRAÇÃO</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                <FormField
-                  label="MODELO"
-                  value={formData.modelo || ''}
-                  onChange={(value) => handleFieldChange('modelo', formatUpperCase(value as string))}
-                  autoFormat
-                  maxLength={50}
-                />
-
-                <FormField
-                  label="PREVISÃO DE FATURAMENTO"
-                  value={formData.previsaoFaturamento || ''}
-                  onChange={(value) => handleFieldChange('previsaoFaturamento', formatUpperCase(value as string))}
-                  autoFormat
-                  maxLength={50}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
-                    label="DATA INICIAL DA DEMO"
-                    value={formData.dataInicial || ''}
-                    onChange={(value) => handleFieldChange('dataInicial', value)}
-                    type="text"
-                    placeholder="DD/MM/AAAA"
-                  />
-
-                  <FormField
-                    label="DATA FINAL DA DEMO"
-                    value={formData.dataFinal || ''}
-                    onChange={(value) => handleFieldChange('dataFinal', value)}
-                    type="text"
-                    placeholder="DD/MM/AAAA"
+                    label="ESTADO"
+                    value={formData.estado || ''}
+                    onChange={(value) => handleFieldChange('estado', value as string)}
+                    maxLength={2}
+                    autoFormat
+                    required
                   />
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-2">
+                    <FormField
+                      label="ENDEREÇO"
+                      value={formData.endereco}
+                      onChange={(value) => handleFieldChange('endereco', value as string)}
+                      maxLength={100}
+                      autoFormat
+                      required
+                    />
+                  </div>
+                  <FormField
+                    label="NÚMERO"
+                    value={formData.numero || ''}
+                    onChange={(value) => handleFieldChange('numero', value as string)}
+                    maxLength={10}
+                    required
+                  />
+                  <FormField
+                    label="BAIRRO"
+                    value={formData.bairro || ''}
+                    onChange={(value) => handleFieldChange('bairro', value as string)}
+                    maxLength={50}
+                    autoFormat
+                    required
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Dados para Entrega */}
+          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg">
+              <CardTitle className="text-lg">DADOS PARA ENTREGA</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <FormField
+                label="NOME/RAZÃO SOCIAL"
+                value={formData.razaoSocialEntrega || ''}
+                onChange={(value) => {
+                  handleFieldChange('razaoSocialEntrega', value as string);
+                  handleFieldChange('nomeClienteEntrega', value as string);
+                }}
+                required
+                maxLength={100}
+                autoFormat
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
-                  label="JUSTIFICATIVA DA DEMO"
-                  value={formData.justificativa || ''}
-                  onChange={(value) => handleFieldChange('justificativa', formatUpperCase(value as string))}
-                  type="textarea"
+                  label="TELEFONE 1"
+                  value={formData.telefone1Entrega || ''}
+                  onChange={(value) => handlePhoneChange('telefone1Entrega', value as string)}
+                  type="tel"
+                  placeholder="(00) 00000-0000"
                   required
-                  autoFormat
-                  maxLength={500}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Status Options */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-t-lg">
-                <CardTitle className="text-lg">OPÇÕES DE STATUS</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                <FormField
-                  label=""
-                  value={formData.ativo || false}
-                  onChange={(value) => handleFieldChange('ativo', value)}
-                  type="checkbox"
-                  placeholder="ATIVO"
                 />
 
                 <FormField
-                  label=""
-                  value={formData.primeiraAplicacao || false}
-                  onChange={(value) => handleFieldChange('primeiraAplicacao', value)}
-                  type="checkbox"
-                  placeholder="PRIMEIRA APLICAÇÃO"
+                  label="TELEFONE 2"
+                  value={formData.telefone2Entrega || ''}
+                  onChange={(value) => handlePhoneChange('telefone2Entrega', value as string)}
+                  type="tel"
+                  placeholder="(00) 00000-0000"
+                  required
                 />
+              </div>
 
-                <FormField
-                  label=""
-                  value={formData.noLocalizado || false}
-                  onChange={(value) => handleFieldChange('noLocalizado', value)}
-                  type="checkbox"
-                  placeholder="NÃO LOCALIZADO"
-                />
-              </CardContent>
-            </Card>
-          </div>
+              <FormField
+                label="CPF/CNPJ"
+                value={formData.cpfCnpjEntrega || ''}
+                onChange={(value) => handleCpfCnpjChange('cpfCnpjEntrega', value as string)}
+                placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                required
+              />
+
+              <FormField
+                label="RESPONSÁVEL PARA CONTATO"
+                value={formData.responsavelEntrega || ''}
+                onChange={(value) => handleFieldChange('responsavelEntrega', value as string)}
+                required
+                maxLength={80}
+                autoFormat
+              />
+
+              <FormField
+                label="E-MAIL"
+                value={formData.emailEntrega || ''}
+                onChange={(value) => handleFieldChange('emailEntrega', value as string)}
+                type="email"
+                required
+                maxLength={80}
+              />
+
+              {/* Endereço Entrega */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    label="CEP"
+                    value={formData.cepEntrega || ''}
+                    onChange={(value) => handleCepChange('cepEntrega', value as string)}
+                    placeholder="00000-000"
+                    loading={loading}
+                    required
+                  />
+                  <FormField
+                    label="CIDADE"
+                    value={formData.cidadeEntrega || ''}
+                    onChange={(value) => handleFieldChange('cidadeEntrega', value as string)}
+                    maxLength={50}
+                    autoFormat
+                    required
+                  />
+                  <FormField
+                    label="ESTADO"
+                    value={formData.estadoEntrega || ''}
+                    onChange={(value) => handleFieldChange('estadoEntrega', value as string)}
+                    maxLength={2}
+                    autoFormat
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-2">
+                    <FormField
+                      label="ENDEREÇO"
+                      value={formData.enderecoEntrega || ''}
+                      onChange={(value) => handleFieldChange('enderecoEntrega', value as string)}
+                      maxLength={100}
+                      autoFormat
+                      required
+                    />
+                  </div>
+                  <FormField
+                    label="NÚMERO"
+                    value={formData.numeroEntrega || ''}
+                    onChange={(value) => handleFieldChange('numeroEntrega', value as string)}
+                    maxLength={10}
+                    required
+                  />
+                  <FormField
+                    label="BAIRRO"
+                    value={formData.bairroEntrega || ''}
+                    onChange={(value) => handleFieldChange('bairroEntrega', value as string)}
+                    maxLength={50}
+                    autoFormat
+                    required
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Equipment Section */}
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
+            <CardTitle className="text-lg">DADOS DO EQUIPAMENTO</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <FormField
+              label="MODELO"
+              value={formData.modelo || ''}
+              onChange={(value) => handleFieldChange('modelo', value as string)}
+              type="select"
+              options={modeloOptions}
+              required
+            />
+
+            <FormField
+              label="JUSTIFICATIVA DA DEMO"
+              value={formData.justificativaDemo || ''}
+              onChange={(value) => handleFieldChange('justificativaDemo', value as string)}
+              type="textarea"
+              maxLength={500}
+              required
+            />
+
+            <FormField
+              label="DESCRIÇÃO DO EQUIPAMENTO"
+              value={formData.descricaoEquipamento || ''}
+              onChange={(value) => handleFieldChange('descricaoEquipamento', value as string)}
+              type="textarea"
+              maxLength={500}
+              required
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                label="DATA INÍCIO"
+                value={formData.dataInicial || ''}
+                onChange={(value) => handleFieldChange('dataInicial', value as string)}
+                type="date"
+                required
+              />
+
+              <FormField
+                label="DATA FIM DA DEMO"
+                value={formData.dataFinal || ''}
+                onChange={(value) => handleFieldChange('dataFinal', value as string)}
+                type="date"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                label="ATIVO"
+                value={formData.ativo || ''}
+                onChange={(value) => handleFieldChange('ativo', value as string)}
+                type="select"
+                options={ativoOptions}
+                required
+              />
+
+              <FormField
+                label="NECESSÁRIO APPLICATION SAMSUNG"
+                value={formData.necessarioApplicationSamsung || ''}
+                onChange={(value) => handleFieldChange('necessarioApplicationSamsung', value as string)}
+                type="select"
+                options={necessarioOptions}
+                required
+              />
+
+              <FormField
+                label="MODO DE USO"
+                value={formData.usoHumanoVeterinario || ''}
+                onChange={(value) => handleFieldChange('usoHumanoVeterinario', value as string)}
+                type="select"
+                options={usoOptions}
+                required
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Additional Clients Section */}
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-t-lg">
+            <CardTitle className="text-lg">CRONOGRAMA DE INSTALAÇÃO</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <FormField
+                label="BO"
+                value={formData.numeroBO || ''}
+                onChange={(value) => handleFieldChange('numeroBO', value as string)}
+                maxLength={50}
+                autoFormat
+              />
+
+              <FormField
+                label="NOME DO CLIENTE"
+                value={formData.nomeClienteAdicional || ''}
+                onChange={(value) => handleFieldChange('nomeClienteAdicional', value as string)}
+                maxLength={100}
+                autoFormat
+              />
+
+              <FormField
+                label="DATA INÍCIO"
+                value={formData.cronogramaInicio || ''}
+                onChange={(value) => handleFieldChange('cronogramaInicio', value as string)}
+                type="date"
+              />
+
+              <FormField
+                label="DATA FIM"
+                value={formData.cronogramaFim || ''}
+                onChange={(value) => handleFieldChange('cronogramaFim', value as string)}
+                type="date"
+              />
+            </div>
+
+            <Button
+              onClick={adicionarCliente}
+              className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar Novo Cliente
+            </Button>
+
+            {/* Lista de clientes adicionais */}
+            {clientesAdicionais.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="font-bold text-gray-800">Clientes Adicionados:</h3>
+                {clientesAdicionais.map((cliente) => (
+                  <div key={cliente.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2 flex-1">
+                      <span className="font-medium">BO: {cliente.numeroBO}</span>
+                      <span>Cliente: {cliente.nomeCliente}</span>
+                      <span>Início: {cliente.dataInicio}</span>
+                      <span>Fim: {cliente.dataFim}</span>
+                    </div>
+                    <Button
+                      onClick={() => removerCliente(cliente.id)}
+                      variant="destructive"
+                      size="sm"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Action Buttons */}
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">

@@ -2,16 +2,17 @@
 export interface FormData {
   id?: string;
   data?: string;
-  motivo: string;
-  nomeCliente: string;
+  motivo?: string;
+  nomeCliente?: string;
   razaoSocial?: string;
-  cpfCnpj: string;
-  telefone1: string;
+  cpfCnpj?: string;
+  telefone1?: string;
   telefone2?: string;
-  email: string;
-  responsavel: string;
+  email?: string;
+  responsavel?: string;
   setorResponsavel?: string;
-  endereco: string;
+  dataNascimento?: string;
+  endereco?: string;
   cep?: string;
   cidade?: string;
   estado?: string;
@@ -29,9 +30,37 @@ export interface FormData {
   usoHumanoVeterinario?: string;
   dataInicial?: string;
   dataFinal?: string;
-  ativo?: boolean;
+  ativo?: boolean | string;
   primeiraAplicacao?: boolean;
   noLocalizado?: boolean;
+  necessarioAplicacao?: boolean;
+  necessarioLicenca?: boolean;
+  dataAplicacao?: string;
+  numeroBO?: string;
+  responsavelInstalacao?: string;
+  
+  // Demonstração specific fields
+  nomeClienteEntrega?: string;
+  razaoSocialEntrega?: string;
+  cpfCnpjEntrega?: string;
+  telefone1Entrega?: string;
+  telefone2Entrega?: string;
+  responsavelEntrega?: string;
+  emailEntrega?: string;
+  enderecoEntrega?: string;
+  cepEntrega?: string;
+  cidadeEntrega?: string;
+  estadoEntrega?: string;
+  bairroEntrega?: string;
+  numeroEntrega?: string;
+  observacaoEnderecoEntrega?: string;
+  justificativaDemo?: string;
+  descricaoEquipamento?: string;
+  necessarioApplicationSamsung?: string;
+  nomeClienteAdicional?: string;
+  cronogramaInicio?: string;
+  cronogramaFim?: string;
+  clientesAdicionais?: any[];
 }
 
 export interface RawDataEntry extends FormData {
