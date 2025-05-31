@@ -3,7 +3,8 @@ export const validateCPF = (cpf: string): boolean => {
   const cleanCPF = cpf.replace(/\D/g, '');
   if (cleanCPF.length !== 11) return false;
   
-  // Validate CPF algorithm
+  if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
+  
   let sum = 0;
   for (let i = 0; i < 9; i++) {
     sum += parseInt(cleanCPF.charAt(i)) * (10 - i);
@@ -26,7 +27,8 @@ export const validateCNPJ = (cnpj: string): boolean => {
   const cleanCNPJ = cnpj.replace(/\D/g, '');
   if (cleanCNPJ.length !== 14) return false;
   
-  // Validate CNPJ algorithm
+  if (/^(\d)\1{13}$/.test(cleanCNPJ)) return false;
+  
   const weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
   const weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
   
@@ -50,19 +52,33 @@ export const validateCNPJ = (cnpj: string): boolean => {
 };
 
 export const formatCPF = (value: string): string => {
-  const numbers = value.replace(/\D/g, '');
+  const numbers = value.replace(/\D/g, '').slice(0, 11);
   return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 };
 
 export const formatCNPJ = (value: string): string => {
-  const numbers = value.replace(/\D/g, '');
+  const numbers = value.replace(/\D/g, '').slice(0, 14);
   return numbers.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
 };
 
 export const formatPhone = (value: string): string => {
-  const numbers = value.replace(/\D/g, '');
+  const numbers = value.replace(/\D/g, '').slice(0, 11);
   if (numbers.length <= 10) {
     return numbers.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
   }
   return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+};
+
+export const formatCEP = (value: string): string => {
+  const numbers = value.replace(/\D/g, '').slice(0, 8);
+  return numbers.replace(/(\d{5})(\d{3})/, '$1-$2');
+};
+
+export const formatUpperCase = (value: string): string => {
+  return value.toUpperCase();
+};
+
+export const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 };
