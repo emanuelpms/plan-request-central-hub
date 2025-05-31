@@ -13,6 +13,7 @@ const AplicacaoTab: React.FC = () => {
 
   const [formData, setFormData] = useState<FormData>({
     motivo: '',
+    nomeCliente: '',
     razaoSocial: '',
     cpfCnpj: '',
     telefone1: '',
@@ -114,6 +115,7 @@ const AplicacaoTab: React.FC = () => {
   const handleClear = () => {
     setFormData({
       motivo: '',
+      nomeCliente: '',
       razaoSocial: '',
       cpfCnpj: '',
       telefone1: '',
@@ -160,7 +162,7 @@ const AplicacaoTab: React.FC = () => {
             <FormField
               label="Motivo"
               value={formData.motivo}
-              onChange={(value) => handleFieldChange('motivo', value)}
+              onChange={(value) => handleFieldChange('motivo', value as string)}
               type="select"
               options={motivoOptions}
               required
@@ -169,7 +171,7 @@ const AplicacaoTab: React.FC = () => {
             <FormField
               label="Razão Social"
               value={formData.razaoSocial || ''}
-              onChange={(value) => handleFieldChange('razaoSocial', value)}
+              onChange={(value) => handleFieldChange('razaoSocial', value as string)}
               required
             />
 
@@ -193,20 +195,20 @@ const AplicacaoTab: React.FC = () => {
             <FormField
               label="Responsável para contato"
               value={formData.responsavel}
-              onChange={(value) => handleFieldChange('responsavel', value)}
+              onChange={(value) => handleFieldChange('responsavel', value as string)}
               required
             />
 
             <FormField
               label="Setor do Responsável"
               value={formData.setorResponsavel || ''}
-              onChange={(value) => handleFieldChange('setorResponsavel', value)}
+              onChange={(value) => handleFieldChange('setorResponsavel', value as string)}
             />
 
             <FormField
               label="E-mail"
               value={formData.email}
-              onChange={(value) => handleFieldChange('email', value)}
+              onChange={(value) => handleFieldChange('email', value as string)}
               type="email"
               required
             />
@@ -214,19 +216,19 @@ const AplicacaoTab: React.FC = () => {
             <FormField
               label="Endereço"
               value={formData.endereco}
-              onChange={(value) => handleFieldChange('endereco', value)}
+              onChange={(value) => handleFieldChange('endereco', value as string)}
             />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 label="CEP"
                 value={formData.cep || ''}
-                onChange={(value) => handleFieldChange('cep', value)}
+                onChange={(value) => handleFieldChange('cep', value as string)}
               />
               <FormField
                 label="Número"
                 value={formData.numero || ''}
-                onChange={(value) => handleFieldChange('numero', value)}
+                onChange={(value) => handleFieldChange('numero', value as string)}
               />
             </div>
           </div>
@@ -236,50 +238,50 @@ const AplicacaoTab: React.FC = () => {
               <FormField
                 label="Cidade"
                 value={formData.cidade || ''}
-                onChange={(value) => handleFieldChange('cidade', value)}
+                onChange={(value) => handleFieldChange('cidade', value as string)}
               />
               <FormField
                 label="Estado"
                 value={formData.estado || ''}
-                onChange={(value) => handleFieldChange('estado', value)}
+                onChange={(value) => handleFieldChange('estado', value as string)}
               />
             </div>
 
             <FormField
               label="Bairro"
               value={formData.bairro || ''}
-              onChange={(value) => handleFieldChange('bairro', value)}
+              onChange={(value) => handleFieldChange('bairro', value as string)}
             />
 
             <FormField
               label="Observação Endereço"
               value={formData.observacaoEndereco || ''}
-              onChange={(value) => handleFieldChange('observacaoEndereco', value)}
+              onChange={(value) => handleFieldChange('observacaoEndereco', value as string)}
               type="textarea"
             />
 
             <FormField
               label="Modelo"
               value={formData.modelo || ''}
-              onChange={(value) => handleFieldChange('modelo', value)}
+              onChange={(value) => handleFieldChange('modelo', value as string)}
             />
 
             <FormField
               label="Modelo de impressora"
               value={formData.modeloImpressora || ''}
-              onChange={(value) => handleFieldChange('modeloImpressora', value)}
+              onChange={(value) => handleFieldChange('modeloImpressora', value as string)}
             />
 
             <FormField
               label="Modelo de nobreak"
               value={formData.modeloNobreak || ''}
-              onChange={(value) => handleFieldChange('modeloNobreak', value)}
+              onChange={(value) => handleFieldChange('modeloNobreak', value as string)}
             />
 
             <FormField
               label="Uso (Humano/Veterinário)"
               value={formData.usoHumanoVeterinario || ''}
-              onChange={(value) => handleFieldChange('usoHumanoVeterinario', value)}
+              onChange={(value) => handleFieldChange('usoHumanoVeterinario', value as string)}
               type="select"
               options={usoOptions}
             />
@@ -295,7 +297,7 @@ const AplicacaoTab: React.FC = () => {
             <FormField
               label="Descrição / Testes"
               value={formData.descricaoTestes || ''}
-              onChange={(value) => handleFieldChange('descricaoTestes', value)}
+              onChange={(value) => handleFieldChange('descricaoTestes', value as string)}
               type="textarea"
             />
           </div>

@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { Loader2, MapPin } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface FormFieldProps {
   label: string;
@@ -38,6 +38,7 @@ const FormField: React.FC<FormFieldProps> = ({
   autoFormat = false
 }) => {
   const [focused, setFocused] = useState(false);
+  const [isValid, setIsValid] = useState(true);
 
   const handleInputChange = (inputValue: string) => {
     let formattedValue = inputValue;
@@ -50,14 +51,32 @@ const FormField: React.FC<FormFieldProps> = ({
       formattedValue = formattedValue.slice(0, maxLength);
     }
     
+    // Validação básica
+    if (required && !formattedValue && type !== 'checkbox') {
+      setIsValid(false);
+    } else {
+      setIsValid(true);
+    }
+    
     onChange(formattedValue);
+  };
+
+  const getStatusIcon = () => {
+    if (loading) return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
+    if (!isValid && (value as string)?.length > 0) return <AlertCircle className="w-4 h-4 text-red-500" />;
+    if (isValid && (value as string)?.length > 0 && required) return <CheckCircle className="w-4 h-4 text-green-500" />;
+    return null;
   };
 
   const renderField = () => {
     const baseInputClass = cn(
-      "transition-all duration-200 border-2",
-      focused ? "border-blue-500 shadow-lg ring-2 ring-blue-200" : "border-gray-300",
-      "hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200",
+      "w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 ease-in-out",
+      "bg-white/80 backdrop-blur-sm placeholder:text-gray-400",
+      focused 
+        ? "border-blue-500 shadow-xl shadow-blue-500/20 ring-4 ring-blue-500/10" 
+        : "border-gray-200 hover:border-gray-300",
+      !isValid && "border-red-300 shadow-red-500/20",
+      "focus:outline-none text-gray-900 font-medium",
       className
     );
 
@@ -71,29 +90,34 @@ const FormField: React.FC<FormFieldProps> = ({
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               placeholder={placeholder}
-              className={cn(baseInputClass, "min-h-[100px] resize-none")}
+              className={cn(baseInputClass, "min-h-[120px] resize-none leading-relaxed")}
               maxLength={maxLength}
             />
-            {maxLength && (
-              <div className="absolute bottom-2 right-2 text-xs text-gray-400">
-                {(value as string).length}/{maxLength}
+            <div className="flex justify-between items-center mt-2">
+              <div className="absolute top-3 right-3">
+                {getStatusIcon()}
               </div>
-            )}
+              {maxLength && (
+                <div className="text-xs text-gray-400 ml-auto">
+                  {(value as string).length}/{maxLength}
+                </div>
+              )}
+            </div>
           </div>
         );
       
       case 'select':
         return (
           <Select value={value as string} onValueChange={onChange}>
-            <SelectTrigger className={cn(baseInputClass, "h-12")}>
-              <SelectValue placeholder={placeholder || "Selecione..."} />
+            <SelectTrigger className={cn(baseInputClass, "h-12 text-left")}>
+              <SelectValue placeholder={placeholder || "Selecione uma opção..."} />
             </SelectTrigger>
-            <SelectContent className="bg-white border-2 border-gray-200 shadow-xl z-50 max-h-60">
+            <SelectContent className="bg-white/95 backdrop-blur-xl border-2 border-gray-100 shadow-2xl z-50 max-h-60 rounded-xl">
               {options.map((option) => (
                 <SelectItem 
                   key={option} 
                   value={option}
-                  className="hover:bg-blue-50 cursor-pointer py-3 px-4 transition-colors"
+                  className="hover:bg-blue-50 cursor-pointer py-3 px-4 transition-colors rounded-lg mx-1"
                 >
                   {option}
                 </SelectItem>
@@ -104,40 +128,16 @@ const FormField: React.FC<FormFieldProps> = ({
       
       case 'checkbox':
         return (
-          <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
+          <div className="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 hover:border-blue-300 transition-all duration-300">
             <Checkbox
               checked={value as boolean}
               onCheckedChange={(checked) => onChange(!!checked)}
-              className="w-5 h-5"
+              className="w-5 h-5 rounded-md border-2 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
             />
-            <span className="text-sm font-medium text-gray-700">{placeholder}</span>
+            <span className="text-sm font-medium text-gray-700 select-none">{placeholder}</span>
           </div>
         );
 
-      case 'cep':
-        return (
-          <div className="relative">
-            <Input
-              type="text"
-              value={value as string}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              placeholder={placeholder}
-              className={cn(baseInputClass, "h-12 pr-10")}
-              maxLength={9}
-            />
-            {loading && (
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-              </div>
-            )}
-            {!loading && (
-              <MapPin className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            )}
-          </div>
-        );
-      
       default:
         return (
           <div className="relative">
@@ -151,27 +151,25 @@ const FormField: React.FC<FormFieldProps> = ({
               className={cn(baseInputClass, "h-12")}
               maxLength={maxLength}
             />
-            {loading && (
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-              </div>
-            )}
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              {getStatusIcon()}
+            </div>
           </div>
         );
     }
   };
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("group", className)}>
       <Label className={cn(
-        "block text-sm font-bold text-white bg-gradient-to-r from-blue-800 to-blue-900 px-4 py-2 rounded-t-lg shadow-md",
-        "border-b-2 border-blue-600",
+        "block text-sm font-bold mb-3 text-gray-800 transition-colors duration-200",
+        focused && "text-blue-600",
+        required && "after:content-['*'] after:ml-1 after:text-red-500",
         labelClassName
       )}>
         {label}
-        {required && <span className="text-red-300 ml-1">*</span>}
       </Label>
-      <div className="bg-white p-3 rounded-b-lg border-2 border-gray-200 shadow-sm">
+      <div className="relative">
         {renderField()}
       </div>
     </div>

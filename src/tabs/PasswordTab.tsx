@@ -139,7 +139,7 @@ const PasswordTab: React.FC = () => {
             <FormField
               label="Nome do cliente"
               value={formData.nomeCliente}
-              onChange={(value) => handleFieldChange('nomeCliente', value)}
+              onChange={(value) => handleFieldChange('nomeCliente', value as string)}
               required
             />
 
@@ -154,7 +154,7 @@ const PasswordTab: React.FC = () => {
             <FormField
               label="Telefones"
               value={formData.telefone1}
-              onChange={(value) => handlePhoneChange('telefone1', value)}
+              onChange={(value) => handlePhoneChange('telefone1', value as string)}
               type="tel"
               placeholder="(00) 00000-0000"
               required
@@ -163,7 +163,7 @@ const PasswordTab: React.FC = () => {
             <FormField
               label="Telefone 2"
               value={formData.telefone2 || ''}
-              onChange={(value) => handlePhoneChange('telefone2', value)}
+              onChange={(value) => handlePhoneChange('telefone2', value as string)}
               type="tel"
               placeholder="(00) 00000-0000"
             />
@@ -171,7 +171,7 @@ const PasswordTab: React.FC = () => {
             <FormField
               label="E-mail"
               value={formData.email}
-              onChange={(value) => handleFieldChange('email', value)}
+              onChange={(value) => handleFieldChange('email', value as string)}
               type="email"
               required
             />
@@ -179,14 +179,14 @@ const PasswordTab: React.FC = () => {
             <FormField
               label="Responsável para contato"
               value={formData.responsavel}
-              onChange={(value) => handleFieldChange('responsavel', value)}
+              onChange={(value) => handleFieldChange('responsavel', value as string)}
               required
             />
 
             <FormField
               label="Endereço"
               value={formData.endereco}
-              onChange={(value) => handleFieldChange('endereco', value)}
+              onChange={(value) => handleFieldChange('endereco', value as string)}
             />
           </div>
 
@@ -195,12 +195,12 @@ const PasswordTab: React.FC = () => {
               <FormField
                 label="CEP"
                 value={formData.cep || ''}
-                onChange={(value) => handleFieldChange('cep', value)}
+                onChange={(value) => handleFieldChange('cep', value as string)}
               />
               <FormField
                 label="Número"
                 value={formData.numero || ''}
-                onChange={(value) => handleFieldChange('numero', value)}
+                onChange={(value) => handleFieldChange('numero', value as string)}
               />
             </div>
 
@@ -208,38 +208,38 @@ const PasswordTab: React.FC = () => {
               <FormField
                 label="Cidade"
                 value={formData.cidade || ''}
-                onChange={(value) => handleFieldChange('cidade', value)}
+                onChange={(value) => handleFieldChange('cidade', value as string)}
               />
               <FormField
                 label="Estado"
                 value={formData.estado || ''}
-                onChange={(value) => handleFieldChange('estado', value)}
+                onChange={(value) => handleFieldChange('estado', value as string)}
               />
             </div>
 
             <FormField
               label="Bairro"
               value={formData.bairro || ''}
-              onChange={(value) => handleFieldChange('bairro', value)}
+              onChange={(value) => handleFieldChange('bairro', value as string)}
             />
 
             <FormField
               label="Observação Endereço"
               value={formData.observacaoEndereco || ''}
-              onChange={(value) => handleFieldChange('observacaoEndereco', value)}
+              onChange={(value) => handleFieldChange('observacaoEndereco', value as string)}
               type="textarea"
             />
 
             <FormField
               label="Modelo"
               value={formData.modelo || ''}
-              onChange={(value) => handleFieldChange('modelo', value)}
+              onChange={(value) => handleFieldChange('modelo', value as string)}
             />
 
             <FormField
               label="Serial"
               value={formData.serial || ''}
-              onChange={(value) => handleFieldChange('serial', value)}
+              onChange={(value) => handleFieldChange('serial', value as string)}
             />
           </div>
         </div>
