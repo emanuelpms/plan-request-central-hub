@@ -5,18 +5,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, Edit, Save, Mail, Settings, Bell, Database } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Settings, Plus, Edit, Trash2, Save, X, Mail, Database, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface AdminConfigProps {
   onClose: () => void;
 }
 
-interface ModelConfig {
+interface ModeloConfig {
   id: string;
-  name: string;
-  category: string;
+  nome: string;
+  categoria: string;
+  ativo: boolean;
+}
+
+interface EmailConfig {
+  formType: string;
+  toEmails: string[];
+  ccEmails: string[];
+  subject: string;
+  customMessage: string;
 }
 
 interface NotificationConfig {
@@ -29,14 +38,11 @@ interface NotificationConfig {
 }
 
 const AdminConfig: React.FC<AdminConfigProps> = ({ onClose }) => {
-  const [models, setModels] = useState<ModelConfig[]>([]);
+  const [activeSection, setActiveSection] = useState('modelos');
+  const [modelos, setModelos] = useState<ModeloConfig[]>([]);
+  const [emailConfigs, setEmailConfigs] = useState<Record<string, EmailConfig>>({});
   const [notifications, setNotifications] = useState<NotificationConfig[]>([]);
-  const [newModel, setNewModel] = useState({ name: '', category: '' });
-  const [newNotification, setNewNotification] = useState({
-    title: '',
-    message: '',
-    type: 'info' as const
-  });
+  const [editingItem, setEditingItem] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,21 +50,27 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ onClose }) => {
   }, []);
 
   const loadConfigurations = () => {
-    // Carregar modelos salvos
-    const savedModels = localStorage.getItem('miniescopo_models');
-    if (savedModels) {
-      setModels(JSON.parse(savedModels));
+    // Carregar modelos
+    const savedModelos = localStorage.getItem('miniescopo_modelos');
+    if (savedModelos) {
+      setModelos(JSON.parse(savedModelos));
     } else {
       // Modelos padrão
-      const defaultModels = [
-        { id: '1', name: 'DR-X40', category: 'DR' },
-        { id: '2', name: 'DR-X70', category: 'DR' },
-        { id: '3', name: 'CR-X30', category: 'CR' },
-        { id: '4', name: 'Mammography', category: 'Mamografia' },
-        { id: '5', name: 'Ultrassom', category: 'Ultrassom' }
+      const defaultModelos = [
+        { id: '1', nome: 'LABGEO PT1000', categoria: 'Humano', ativo: true },
+        { id: '2', nome: 'LABGEO PT3000', categoria: 'Humano', ativo: true },
+        { id: '3', nome: 'LABGEO PT1000 VET', categoria: 'Veterinário', ativo: true },
+        { id: '4', nome: 'LABGEO PT3000 VET', categoria: 'Veterinário', ativo: true },
+        { id: '5', nome: 'OUTROS', categoria: 'Geral', ativo: true }
       ];
-      setModels(defaultModels);
-      localStorage.setItem('miniescopo_models', JSON.stringify(defaultModels));
+      setModelos(defaultModelos);
+      localStorage.setItem('miniescopo_modelos', JSON.stringify(defaultModelos));
+    }
+
+    // Carregar configurações de email
+    const savedEmailConfigs = localStorage.getItem('miniescopo_email_config');
+    if (savedEmailConfigs) {
+      setEmailConfigs(JSON.parse(savedEmailConfigs));
     }
 
     // Carregar notificações
@@ -68,129 +80,117 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ onClose }) => {
     }
   };
 
-  const saveModels = (updatedModels: ModelConfig[]) => {
-    setModels(updatedModels);
-    localStorage.setItem('miniescopo_models', JSON.stringify(updatedModels));
+  const saveModelos = (newModelos: ModeloConfig[]) => {
+    setModelos(newModelos);
+    localStorage.setItem('miniescopo_modelos', JSON.stringify(newModelos));
+    toast({ title: "Sucesso", description: "Modelos atualizados com sucesso." });
   };
 
-  const saveNotifications = (updatedNotifications: NotificationConfig[]) => {
-    setNotifications(updatedNotifications);
-    localStorage.setItem('miniescopo_notifications', JSON.stringify(updatedNotifications));
+  const saveEmailConfigs = (newConfigs: Record<string, EmailConfig>) => {
+    setEmailConfigs(newConfigs);
+    localStorage.setItem('miniescopo_email_config', JSON.stringify(newConfigs));
+    toast({ title: "Sucesso", description: "Configurações de email atualizadas." });
   };
 
-  const addModel = () => {
-    if (!newModel.name || !newModel.category) {
-      toast({
-        title: "Erro",
-        description: "Preencha todos os campos do modelo.",
-        variant: "destructive"
-      });
+  const saveNotifications = (newNotifications: NotificationConfig[]) => {
+    setNotifications(newNotifications);
+    localStorage.setItem('miniescopo_notifications', JSON.stringify(newNotifications));
+    toast({ title: "Sucesso", description: "Notificações atualizadas." });
+  };
+
+  const addModelo = () => {
+    const newModelo: ModeloConfig = {
+      id: Date.now().toString(),
+      nome: '',
+      categoria: 'Geral',
+      ativo: true
+    };
+    setEditingItem(newModelo);
+  };
+
+  const editModelo = (modelo: ModeloConfig) => {
+    setEditingItem({ ...modelo });
+  };
+
+  const deleteModelo = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este modelo?')) {
+      const newModelos = modelos.filter(m => m.id !== id);
+      saveModelos(newModelos);
+    }
+  };
+
+  const saveModelo = () => {
+    if (!editingItem.nome.trim()) {
+      toast({ title: "Erro", description: "Nome do modelo é obrigatório.", variant: "destructive" });
       return;
     }
 
-    const model: ModelConfig = {
-      id: Date.now().toString(),
-      name: newModel.name,
-      category: newModel.category
-    };
-
-    const updatedModels = [...models, model];
-    saveModels(updatedModels);
-    setNewModel({ name: '', category: '' });
+    let newModelos;
+    if (modelos.find(m => m.id === editingItem.id)) {
+      newModelos = modelos.map(m => m.id === editingItem.id ? editingItem : m);
+    } else {
+      newModelos = [...modelos, editingItem];
+    }
     
-    toast({
-      title: "Sucesso",
-      description: "Modelo adicionado com sucesso."
-    });
-  };
-
-  const removeModel = (id: string) => {
-    const updatedModels = models.filter(m => m.id !== id);
-    saveModels(updatedModels);
-    
-    toast({
-      title: "Sucesso",
-      description: "Modelo removido com sucesso."
-    });
+    saveModelos(newModelos);
+    setEditingItem(null);
   };
 
   const addNotification = () => {
-    if (!newNotification.title || !newNotification.message) {
-      toast({
-        title: "Erro",
-        description: "Preencha todos os campos da notificação.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const notification: NotificationConfig = {
+    const newNotification: NotificationConfig = {
       id: Date.now().toString(),
-      title: newNotification.title,
-      message: newNotification.message,
-      type: newNotification.type,
+      title: '',
+      message: '',
+      type: 'info',
       active: true,
       createdAt: new Date().toISOString()
     };
+    setEditingItem(newNotification);
+  };
 
-    const updatedNotifications = [...notifications, notification];
-    saveNotifications(updatedNotifications);
-    setNewNotification({ title: '', message: '', type: 'info' });
+  const saveNotification = () => {
+    if (!editingItem.title.trim() || !editingItem.message.trim()) {
+      toast({ title: "Erro", description: "Título e mensagem são obrigatórios.", variant: "destructive" });
+      return;
+    }
+
+    let newNotifications;
+    if (notifications.find(n => n.id === editingItem.id)) {
+      newNotifications = notifications.map(n => n.id === editingItem.id ? editingItem : n);
+    } else {
+      newNotifications = [...notifications, editingItem];
+    }
     
-    toast({
-      title: "Sucesso",
-      description: "Notificação criada com sucesso."
-    });
+    saveNotifications(newNotifications);
+    setEditingItem(null);
   };
 
-  const toggleNotification = (id: string) => {
-    const updatedNotifications = notifications.map(n => 
-      n.id === id ? { ...n, active: !n.active } : n
-    );
-    saveNotifications(updatedNotifications);
+  const deleteNotification = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir esta notificação?')) {
+      const newNotifications = notifications.filter(n => n.id !== id);
+      saveNotifications(newNotifications);
+    }
   };
 
-  const removeNotification = (id: string) => {
-    const updatedNotifications = notifications.filter(n => n.id !== id);
-    saveNotifications(updatedNotifications);
-    
-    toast({
-      title: "Sucesso",
-      description: "Notificação removida com sucesso."
-    });
+  const openEmailConfig = () => {
+    window.dispatchEvent(new Event('openEmailConfig'));
+    onClose();
   };
 
-  const exportDatabase = () => {
-    const data = {
-      models,
-      notifications,
-      rawData: JSON.parse(localStorage.getItem('miniescopo_rawdata') || '[]'),
-      database: JSON.parse(localStorage.getItem('miniescopo_database') || '[]'),
-      emailConfig: JSON.parse(localStorage.getItem('miniescopo_email_config') || '{}')
-    };
-
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `miniescopo_backup_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: "Sucesso",
-      description: "Backup exportado com sucesso."
-    });
-  };
+  const sections = [
+    { id: 'modelos', label: 'Modelos', icon: Database },
+    { id: 'emails', label: 'Configurar Emails', icon: Mail },
+    { id: 'notifications', label: 'Notificações', icon: Bell }
+  ];
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-6xl bg-white max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-6xl bg-white max-h-[90vh] overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Settings className="w-6 h-6" />
-              <CardTitle className="text-xl">Configurações do Sistema</CardTitle>
+              <CardTitle className="text-xl">Painel Administrativo</CardTitle>
             </div>
             <Button
               variant="ghost"
@@ -198,174 +198,68 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ onClose }) => {
               onClick={onClose}
               className="text-white hover:bg-white/20"
             >
-              ✕
+              <X className="w-4 h-4" />
             </Button>
           </div>
         </CardHeader>
         
-        <CardContent className="p-6">
-          <Tabs defaultValue="models" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="models">Modelos</TabsTrigger>
-              <TabsTrigger value="emails">E-mails</TabsTrigger>
-              <TabsTrigger value="notifications">Notificações</TabsTrigger>
-              <TabsTrigger value="database">Banco de Dados</TabsTrigger>
-            </TabsList>
+        <div className="flex h-[calc(90vh-120px)]">
+          {/* Sidebar */}
+          <div className="w-64 bg-gray-50 border-r p-4">
+            <div className="space-y-2">
+              {sections.map((section) => {
+                const IconComponent = section.icon;
+                return (
+                  <Button
+                    key={section.id}
+                    variant={activeSection === section.id ? "default" : "ghost"}
+                    className="w-full justify-start"
+                    onClick={() => setActiveSection(section.id)}
+                  >
+                    <IconComponent className="w-4 h-4 mr-2" />
+                    {section.label}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
 
-            <TabsContent value="models" className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Gerenciar Modelos de Equipamentos</h3>
-                
-                {/* Adicionar novo modelo */}
-                <Card className="mb-6">
-                  <CardHeader>
-                    <CardTitle className="text-base">Adicionar Novo Modelo</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Nome do Modelo</Label>
-                        <Input
-                          value={newModel.name}
-                          onChange={(e) => setNewModel({...newModel, name: e.target.value})}
-                          placeholder="Ex: DR-X40"
-                        />
-                      </div>
-                      <div>
-                        <Label>Categoria</Label>
-                        <Input
-                          value={newModel.category}
-                          onChange={(e) => setNewModel({...newModel, category: e.target.value})}
-                          placeholder="Ex: DR, CR, Mamografia"
-                        />
-                      </div>
-                    </div>
-                    <Button onClick={addModel} className="w-full">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Adicionar Modelo
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Lista de modelos */}
-                <div className="grid gap-3">
-                  {models.map((model) => (
-                    <div key={model.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <span className="font-medium">{model.name}</span>
-                        <span className="text-gray-500 ml-2">({model.category})</span>
-                      </div>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => removeModel(model.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
+          {/* Content */}
+          <div className="flex-1 p-6 overflow-y-auto">
+            {activeSection === 'modelos' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Gerenciar Modelos</h3>
+                  <Button onClick={addModelo}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar Modelo
+                  </Button>
                 </div>
-              </div>
-            </TabsContent>
 
-            <TabsContent value="emails" className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Configurações de E-mail</h3>
-                <p className="text-gray-600 mb-4">
-                  As configurações de e-mail podem ser acessadas através do botão "CONFIG EMAIL" em cada formulário.
-                </p>
-                <Button
-                  onClick={() => {
-                    onClose();
-                    // Trigger email config modal
-                    setTimeout(() => {
-                      const event = new CustomEvent('openEmailConfig');
-                      window.dispatchEvent(event);
-                    }, 100);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  Abrir Configurações de E-mail
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="notifications" className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Gerenciar Notificações</h3>
-                
-                {/* Adicionar notificação */}
-                <Card className="mb-6">
-                  <CardHeader>
-                    <CardTitle className="text-base">Criar Nova Notificação</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label>Título</Label>
-                      <Input
-                        value={newNotification.title}
-                        onChange={(e) => setNewNotification({...newNotification, title: e.target.value})}
-                        placeholder="Título da notificação"
-                      />
-                    </div>
-                    <div>
-                      <Label>Mensagem</Label>
-                      <Textarea
-                        value={newNotification.message}
-                        onChange={(e) => setNewNotification({...newNotification, message: e.target.value})}
-                        placeholder="Conteúdo da notificação"
-                        rows={3}
-                      />
-                    </div>
-                    <div>
-                      <Label>Tipo</Label>
-                      <select
-                        value={newNotification.type}
-                        onChange={(e) => setNewNotification({...newNotification, type: e.target.value as any})}
-                        className="w-full p-2 border rounded"
-                      >
-                        <option value="info">Informação</option>
-                        <option value="warning">Aviso</option>
-                        <option value="success">Sucesso</option>
-                      </select>
-                    </div>
-                    <Button onClick={addNotification} className="w-full">
-                      <Bell className="w-4 h-4 mr-2" />
-                      Criar Notificação
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Lista de notificações */}
-                <div className="space-y-3">
-                  {notifications.map((notification) => (
-                    <Card key={notification.id} className={notification.active ? 'border-green-200' : 'border-gray-200'}>
+                <div className="grid gap-4">
+                  {modelos.map((modelo) => (
+                    <Card key={modelo.id}>
                       <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium">{notification.title}</h4>
-                            <p className="text-gray-600 text-sm mt-1">{notification.message}</p>
-                            <span className={`inline-block px-2 py-1 rounded text-xs mt-2 ${
-                              notification.type === 'info' ? 'bg-blue-100 text-blue-800' :
-                              notification.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
-                              {notification.type}
-                            </span>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium">{modelo.nome}</h4>
+                            <p className="text-sm text-gray-600">Categoria: {modelo.categoria}</p>
+                            <p className="text-sm text-gray-600">
+                              Status: {modelo.ativo ? 'Ativo' : 'Inativo'}
+                            </p>
                           </div>
                           <div className="flex gap-2">
                             <Button
-                              variant={notification.active ? "default" : "outline"}
+                              variant="outline"
                               size="sm"
-                              onClick={() => toggleNotification(notification.id)}
+                              onClick={() => editModelo(modelo)}
                             >
-                              {notification.active ? 'Ativo' : 'Inativo'}
+                              <Edit className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="destructive"
                               size="sm"
-                              onClick={() => removeNotification(notification.id)}
+                              onClick={() => deleteModelo(modelo.id)}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -376,45 +270,187 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ onClose }) => {
                   ))}
                 </div>
               </div>
-            </TabsContent>
+            )}
 
-            <TabsContent value="database" className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Gerenciar Banco de Dados</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Exportar Dados</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-gray-600 mb-4">
-                        Exporta todos os dados do sistema em formato JSON para backup.
-                      </p>
-                      <Button onClick={exportDatabase} className="w-full">
-                        <Database className="w-4 h-4 mr-2" />
-                        Exportar Backup
-                      </Button>
-                    </CardContent>
-                  </Card>
+            {activeSection === 'emails' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Configurações de Email</h3>
+                  <Button onClick={openEmailConfig}>
+                    <Mail className="w-4 h-4 mr-2" />
+                    Abrir Configurador
+                  </Button>
+                </div>
+                <p className="text-gray-600">
+                  Use o botão acima para configurar os emails para cada tipo de formulário.
+                </p>
+              </div>
+            )}
 
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Estatísticas</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <p><strong>Modelos cadastrados:</strong> {models.length}</p>
-                        <p><strong>Notificações ativas:</strong> {notifications.filter(n => n.active).length}</p>
-                        <p><strong>Total de registros:</strong> {JSON.parse(localStorage.getItem('miniescopo_rawdata') || '[]').length}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
+            {activeSection === 'notifications' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Gerenciar Notificações</h3>
+                  <Button onClick={addNotification}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nova Notificação
+                  </Button>
+                </div>
+
+                <div className="grid gap-4">
+                  {notifications.map((notification) => (
+                    <Card key={notification.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium">{notification.title}</h4>
+                            <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                            <div className="flex items-center gap-4 mt-2">
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                notification.type === 'info' ? 'bg-blue-100 text-blue-800' :
+                                notification.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {notification.type}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {notification.active ? 'Ativa' : 'Inativa'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingItem({ ...notification })}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => deleteNotification(notification.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
+            )}
+          </div>
+        </div>
+
+        {/* Modal de Edição */}
+        {editingItem && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4">
+            <Card className="w-full max-w-2xl bg-white">
+              <CardHeader>
+                <CardTitle>
+                  {activeSection === 'modelos' ? 'Editar Modelo' : 'Editar Notificação'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {activeSection === 'modelos' ? (
+                  <>
+                    <div>
+                      <Label>Nome do Modelo</Label>
+                      <Input
+                        value={editingItem.nome}
+                        onChange={(e) => setEditingItem({...editingItem, nome: e.target.value})}
+                        placeholder="Ex: LABGEO PT1000"
+                      />
+                    </div>
+                    <div>
+                      <Label>Categoria</Label>
+                      <Select
+                        value={editingItem.categoria}
+                        onValueChange={(value) => setEditingItem({...editingItem, categoria: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Humano">Humano</SelectItem>
+                          <SelectItem value="Veterinário">Veterinário</SelectItem>
+                          <SelectItem value="Geral">Geral</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={editingItem.ativo}
+                        onChange={(e) => setEditingItem({...editingItem, ativo: e.target.checked})}
+                      />
+                      <Label>Ativo</Label>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <Label>Título</Label>
+                      <Input
+                        value={editingItem.title}
+                        onChange={(e) => setEditingItem({...editingItem, title: e.target.value})}
+                        placeholder="Título da notificação"
+                      />
+                    </div>
+                    <div>
+                      <Label>Mensagem</Label>
+                      <Textarea
+                        value={editingItem.message}
+                        onChange={(e) => setEditingItem({...editingItem, message: e.target.value})}
+                        placeholder="Conteúdo da notificação"
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label>Tipo</Label>
+                      <Select
+                        value={editingItem.type}
+                        onValueChange={(value) => setEditingItem({...editingItem, type: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="info">Informação</SelectItem>
+                          <SelectItem value="warning">Aviso</SelectItem>
+                          <SelectItem value="success">Sucesso</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={editingItem.active}
+                        onChange={(e) => setEditingItem({...editingItem, active: e.target.checked})}
+                      />
+                      <Label>Ativa</Label>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex gap-4 pt-4">
+                  <Button
+                    onClick={activeSection === 'modelos' ? saveModelo : saveNotification}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Salvar
+                  </Button>
+                  <Button variant="outline" onClick={() => setEditingItem(null)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </Card>
     </div>
   );

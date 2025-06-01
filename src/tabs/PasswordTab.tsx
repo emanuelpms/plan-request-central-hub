@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import ClientDataSection from '../components/ClientDataSection';
 import FormField from '../components/FormField';
 import ActionButtons from '../components/ActionButtons';
+import FileAttachments from '../components/FileAttachments';
 import { useRawData } from '../hooks/useRawData';
 import { useToast } from '@/hooks/use-toast';
-import { FormData } from '../types';
+import { FormData, FileAttachment } from '../types';
 import { validateCPF, validateCNPJ } from '../utils/validation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +14,7 @@ import { Key, Wrench } from 'lucide-react';
 const PasswordTab: React.FC = () => {
   const { addEntry } = useRawData();
   const { toast } = useToast();
+  const [attachments, setAttachments] = useState<FileAttachment[]>([]);
 
   const [formData, setFormData] = useState<FormData>({
     nomeCliente: '',
@@ -37,7 +39,8 @@ const PasswordTab: React.FC = () => {
     previsaoFaturamento: '',
     numeroBO: '',
     documentacaoObrigatoria: false,
-    descricaoTestes: ''
+    descricaoTestes: '',
+    attachments: []
   });
 
   const modeloOptions = [
@@ -71,6 +74,11 @@ const PasswordTab: React.FC = () => {
       
       return newData;
     });
+  };
+
+  const handleAttachmentsChange = (newAttachments: FileAttachment[]) => {
+    setAttachments(newAttachments);
+    setFormData(prev => ({ ...prev, attachments: newAttachments }));
   };
 
   const validateForm = (): boolean => {
@@ -126,7 +134,8 @@ const PasswordTab: React.FC = () => {
 
   const handleSave = () => {
     if (!validateForm()) return;
-    addEntry(formData, 'PASSWORD');
+    const dataToSave = { ...formData, attachments };
+    addEntry(dataToSave, 'PASSWORD');
     toast({
       title: "Sucesso!",
       description: "Solicitação de licença salva com sucesso.",
@@ -157,13 +166,16 @@ const PasswordTab: React.FC = () => {
       previsaoFaturamento: '',
       numeroBO: '',
       documentacaoObrigatoria: false,
-      descricaoTestes: ''
+      descricaoTestes: '',
+      attachments: []
     });
+    setAttachments([]);
   };
 
   const handleSend = () => {
     if (!validateForm()) return;
-    addEntry(formData, 'PASSWORD');
+    const dataToSave = { ...formData, attachments };
+    addEntry(dataToSave, 'PASSWORD');
     toast({
       title: "Enviado!",
       description: "Solicitação de licença enviada com sucesso.",
@@ -276,6 +288,12 @@ const PasswordTab: React.FC = () => {
             />
           </CardContent>
         </Card>
+
+        {/* File Attachments */}
+        <FileAttachments
+          attachments={attachments}
+          onAttachmentsChange={handleAttachmentsChange}
+        />
 
         {/* Action Buttons */}
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">

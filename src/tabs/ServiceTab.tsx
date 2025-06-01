@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import ClientDataSection from '../components/ClientDataSection';
 import FormField from '../components/FormField';
 import ActionButtons from '../components/ActionButtons';
+import FileAttachments from '../components/FileAttachments';
 import { useRawData } from '../hooks/useRawData';
 import { useToast } from '@/hooks/use-toast';
-import { FormData } from '../types';
+import { FormData, FileAttachment } from '../types';
 import { validateCPF, validateCNPJ } from '../utils/validation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +14,7 @@ import { Settings, Wrench } from 'lucide-react';
 const ServiceTab: React.FC = () => {
   const { addEntry } = useRawData();
   const { toast } = useToast();
+  const [attachments, setAttachments] = useState<FileAttachment[]>([]);
 
   const [formData, setFormData] = useState<FormData>({
     nomeCliente: '',
@@ -41,7 +43,8 @@ const ServiceTab: React.FC = () => {
     descricaoTestes: '',
     necessarioAplicacao: false,
     necessarioLicenca: false,
-    dataAplicacao: ''
+    dataAplicacao: '',
+    attachments: []
   });
 
   const modeloOptions = [
@@ -86,6 +89,11 @@ const ServiceTab: React.FC = () => {
       
       return newData;
     });
+  };
+
+  const handleAttachmentsChange = (newAttachments: FileAttachment[]) => {
+    setAttachments(newAttachments);
+    setFormData(prev => ({ ...prev, attachments: newAttachments }));
   };
 
   const validateForm = (): boolean => {
@@ -162,7 +170,8 @@ const ServiceTab: React.FC = () => {
 
   const handleSave = () => {
     if (!validateForm()) return;
-    addEntry(formData, 'SERVICE');
+    const dataToSave = { ...formData, attachments };
+    addEntry(dataToSave, 'SERVICE');
     toast({
       title: "Sucesso!",
       description: "Solicitação de serviço salva com sucesso.",
@@ -197,13 +206,16 @@ const ServiceTab: React.FC = () => {
       descricaoTestes: '',
       necessarioAplicacao: false,
       necessarioLicenca: false,
-      dataAplicacao: ''
+      dataAplicacao: '',
+      attachments: []
     });
+    setAttachments([]);
   };
 
   const handleSend = () => {
     if (!validateForm()) return;
-    addEntry(formData, 'SERVICE');
+    const dataToSave = { ...formData, attachments };
+    addEntry(dataToSave, 'SERVICE');
     toast({
       title: "Enviado!",
       description: "Solicitação enviada com sucesso.",
@@ -360,6 +372,12 @@ const ServiceTab: React.FC = () => {
             />
           </CardContent>
         </Card>
+
+        {/* File Attachments */}
+        <FileAttachments
+          attachments={attachments}
+          onAttachmentsChange={handleAttachmentsChange}
+        />
 
         {/* Action Buttons */}
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
