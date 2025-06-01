@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import FormField from '../components/FormField';
 import ActionButtons from '../components/ActionButtons';
@@ -789,6 +788,9 @@ const DemonstracaoTab: React.FC = () => {
               onSave={handleSave}
               onClear={handleClear}
               onSend={handleSend}
+              formData={formData}
+              formType="DEMONSTRACAO"
+              motivo={formData.justificativaDemo || ''}
             />
           </CardContent>
         </Card>

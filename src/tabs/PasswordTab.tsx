@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import ClientDataSection from '../components/ClientDataSection';
 import FormField from '../components/FormField';
@@ -285,6 +284,9 @@ const PasswordTab: React.FC = () => {
               onSave={handleSave}
               onClear={handleClear}
               onSend={handleSend}
+              formData={formData}
+              formType="PASSWORD"
+              motivo={formData.motivo || ''}
             />
           </CardContent>
         </Card>

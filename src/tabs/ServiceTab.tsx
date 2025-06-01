@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import ClientDataSection from '../components/ClientDataSection';
 import FormField from '../components/FormField';
@@ -369,6 +368,9 @@ const ServiceTab: React.FC = () => {
               onSave={handleSave}
               onClear={handleClear}
               onSend={handleSend}
+              formData={formData}
+              formType="SERVICE"
+              motivo={formData.motivo || ''}
             />
           </CardContent>
         </Card>
