@@ -1,11 +1,11 @@
-
 import React, { useState } from 'react';
 import ClientDataSection from '../components/ClientDataSection';
 import FormField from '../components/FormField';
 import ActionButtons from '../components/ActionButtons';
+import FileAttachments from '../components/FileAttachments';
 import { useRawData } from '../hooks/useRawData';
 import { useToast } from '@/hooks/use-toast';
-import { FormData } from '../types';
+import { FormData, FileAttachment } from '../types';
 import { validateCPF, validateCNPJ } from '../utils/validation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { Download, Wrench } from 'lucide-react';
 const InstalacaoDemoTab: React.FC = () => {
   const { addEntry } = useRawData();
   const { toast } = useToast();
+  const [attachments, setAttachments] = useState<FileAttachment[]>([]);
 
   const [formData, setFormData] = useState<FormData>({
     nomeCliente: '',
@@ -42,7 +43,8 @@ const InstalacaoDemoTab: React.FC = () => {
     numeroBO: '',
     dataInicial: '',
     dataFinal: '',
-    responsavelInstalacao: ''
+    responsavelInstalacao: '',
+    attachments: []
   });
 
   const modeloOptions = [
@@ -73,6 +75,11 @@ const InstalacaoDemoTab: React.FC = () => {
 
   const handleFieldChange = (field: keyof FormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleAttachmentsChange = (newAttachments: FileAttachment[]) => {
+    setAttachments(newAttachments);
+    setFormData(prev => ({ ...prev, attachments: newAttachments }));
   };
 
   const validateForm = (): boolean => {
@@ -129,7 +136,8 @@ const InstalacaoDemoTab: React.FC = () => {
 
   const handleSave = () => {
     if (!validateForm()) return;
-    addEntry(formData, 'INSTALACAO_DEMO');
+    const dataToSave = { ...formData, attachments };
+    addEntry(dataToSave, 'INSTALACAO_DEMO');
     toast({
       title: "Sucesso!",
       description: "Solicitação de instalação demo salva com sucesso.",
@@ -164,17 +172,10 @@ const InstalacaoDemoTab: React.FC = () => {
       numeroBO: '',
       dataInicial: '',
       dataFinal: '',
-      responsavelInstalacao: ''
+      responsavelInstalacao: '',
+      attachments: []
     });
-  };
-
-  const handleSend = () => {
-    if (!validateForm()) return;
-    addEntry(formData, 'INSTALACAO_DEMO');
-    toast({
-      title: "Enviado!",
-      description: "Solicitação de instalação demo enviada com sucesso.",
-    });
+    setAttachments([]);
   };
 
   return (
@@ -231,7 +232,7 @@ const InstalacaoDemoTab: React.FC = () => {
                 label="SERIAL"
                 value={formData.serial || ''}
                 onChange={(value) => handleFieldChange('serial', value as string)}
-                maxLength={50}
+                maxLength={15}
                 autoFormat
                 required
               />
@@ -321,13 +322,21 @@ const InstalacaoDemoTab: React.FC = () => {
           </CardContent>
         </Card>
 
+        {/* File Attachments */}
+        <FileAttachments
+          attachments={attachments}
+          onAttachmentsChange={handleAttachmentsChange}
+        />
+
         {/* Action Buttons */}
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg">
           <CardContent className="p-6">
             <ActionButtons
               onSave={handleSave}
               onClear={handleClear}
-              onSend={handleSend}
+              formData={formData}
+              formType="INSTALACAO_DEMO"
+              motivo={formData.motivo || ''}
             />
           </CardContent>
         </Card>

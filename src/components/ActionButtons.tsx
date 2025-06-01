@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 interface ActionButtonsProps {
   onSave: () => void;
   onClear: () => void;
+  onSend?: () => void;
   formData: FormData;
   formType: FormType;
   motivo?: string;
@@ -19,6 +20,7 @@ interface ActionButtonsProps {
 const ActionButtons: React.FC<ActionButtonsProps> = ({ 
   onSave, 
   onClear, 
+  onSend,
   formData,
   formType,
   motivo = '',
@@ -72,6 +74,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         title: "Sucesso",
         description: "Email aberto no Outlook. Verifique se foi aberto corretamente."
       });
+
+      // Chamar onSend se fornecido
+      if (onSend) {
+        onSend();
+      }
       
     } catch (error) {
       console.error('Erro ao enviar email:', error);
