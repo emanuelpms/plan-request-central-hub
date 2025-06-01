@@ -3,21 +3,85 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Save, Trash2, Send, Settings } from 'lucide-react';
 import EmailConfig from './EmailConfig';
+import { sendEmailViaOutlook } from '@/services/emailService';
+import { FormData, FormType } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 interface ActionButtonsProps {
   onSave: () => void;
   onClear: () => void;
-  onSend: () => void;
+  formData: FormData;
+  formType: FormType;
+  motivo?: string;
   showEmailConfig?: boolean;
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({ 
   onSave, 
   onClear, 
-  onSend,
+  formData,
+  formType,
+  motivo = '',
   showEmailConfig = true 
 }) => {
   const [showConfig, setShowConfig] = useState(false);
+  const { toast } = useToast();
+
+  const handleSendEmail = async () => {
+    try {
+      // Validar dados obrigatórios
+      if (!formData.razaoSocial && !formData.nomeCliente) {
+        toast({
+          title: "Erro",
+          description: "Nome/Razão Social é obrigatório.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!formData.modelo) {
+        toast({
+          title: "Erro",
+          description: "Modelo é obrigatório.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!formData.serial || formData.serial.length !== 15) {
+        toast({
+          title: "Erro",
+          description: "Serial deve ter exatamente 15 caracteres.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!motivo) {
+        toast({
+          title: "Erro",
+          description: "Motivo da solicitação é obrigatório.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await sendEmailViaOutlook(formData, formType, motivo);
+      
+      toast({
+        title: "Sucesso",
+        description: "Email aberto no Outlook. Verifique se foi aberto corretamente."
+      });
+      
+    } catch (error) {
+      console.error('Erro ao enviar email:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao abrir o Outlook. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <>
@@ -43,7 +107,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 
         <Button
           type="button"
-          onClick={onSend}
+          onClick={handleSendEmail}
           className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
         >
           <Send className="w-5 h-5 mr-2" />

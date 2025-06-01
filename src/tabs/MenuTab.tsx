@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,14 +15,18 @@ import {
   TrendingUp,
   Sparkles,
   ArrowRight,
-  CheckCircle
+  CheckCircle,
+  Bell,
+  Info,
+  AlertTriangle
 } from 'lucide-react';
 
 interface MenuTabProps {
   onNavigate: (tab: string) => void;
+  notifications?: any[];
 }
 
-const MenuTab: React.FC<MenuTabProps> = ({ onNavigate }) => {
+const MenuTab: React.FC<MenuTabProps> = ({ onNavigate, notifications = [] }) => {
   const menuItems = [
     { 
       id: 'SERVICE', 
@@ -91,6 +94,46 @@ const MenuTab: React.FC<MenuTabProps> = ({ onNavigate }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-100/30">
       <div className="max-w-7xl mx-auto p-8 space-y-10">
+        {/* Notifications Section */}
+        {notifications.length > 0 && (
+          <div className="space-y-4">
+            {notifications.map((notification) => (
+              <Card key={notification.id} className={cn(
+                "border-l-4",
+                notification.type === 'info' ? 'border-l-blue-500 bg-blue-50' :
+                notification.type === 'warning' ? 'border-l-yellow-500 bg-yellow-50' :
+                'border-l-green-500 bg-green-50'
+              )}>
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "p-2 rounded-full",
+                      notification.type === 'info' ? 'bg-blue-100 text-blue-600' :
+                      notification.type === 'warning' ? 'bg-yellow-100 text-yellow-600' :
+                      'bg-green-100 text-green-600'
+                    )}>
+                      {notification.type === 'warning' ? (
+                        <AlertTriangle className="w-5 h-5" />
+                      ) : notification.type === 'success' ? (
+                        <CheckCircle className="w-5 h-5" />
+                      ) : (
+                        <Info className="w-5 h-5" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900">{notification.title}</h3>
+                      <p className="text-gray-600 mt-1">{notification.message}</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {new Date(notification.createdAt).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
         {/* Hero Section */}
         <div className="text-center py-12 relative">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-transparent to-purple-600/10 rounded-3xl"></div>
