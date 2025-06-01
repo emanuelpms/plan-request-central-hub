@@ -1,4 +1,3 @@
-
 export interface FormData {
   id?: string;
   data?: string;
@@ -61,6 +60,9 @@ export interface FormData {
   cronogramaInicio?: string;
   cronogramaFim?: string;
   clientesAdicionais?: any[];
+  
+  // Novo campo para anexos
+  attachments?: FileAttachment[];
 }
 
 export interface RawDataEntry extends FormData {
@@ -96,4 +98,12 @@ export interface CNPJResponse {
   cep?: string;
   telefone?: string;
   email?: string;
+}
+
+export interface FileAttachment {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  file: File;
 }

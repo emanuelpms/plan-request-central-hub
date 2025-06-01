@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -47,15 +46,23 @@ const FormField: React.FC<FormFieldProps> = ({
       formattedValue = inputValue.toUpperCase();
     }
     
-    if (maxLength) {
-      formattedValue = formattedValue.slice(0, maxLength);
-    }
-    
-    // Validação básica
-    if (required && !formattedValue && type !== 'checkbox') {
-      setIsValid(false);
+    // Validação especial para campo serial (15 caracteres exatos)
+    if (label.toLowerCase().includes('serial')) {
+      if (formattedValue.length > 15) {
+        formattedValue = formattedValue.slice(0, 15);
+      }
+      setIsValid(formattedValue.length === 15 || formattedValue.length === 0);
     } else {
-      setIsValid(true);
+      if (maxLength) {
+        formattedValue = formattedValue.slice(0, maxLength);
+      }
+      
+      // Validação básica
+      if (required && !formattedValue && type !== 'checkbox') {
+        setIsValid(false);
+      } else {
+        setIsValid(true);
+      }
     }
     
     onChange(formattedValue);
@@ -63,8 +70,22 @@ const FormField: React.FC<FormFieldProps> = ({
 
   const getStatusIcon = () => {
     if (loading) return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
-    if (!isValid && (value as string)?.length > 0) return <AlertCircle className="w-4 h-4 text-red-500" />;
-    if (isValid && (value as string)?.length > 0 && required) return <CheckCircle className="w-4 h-4 text-green-500" />;
+    
+    // Validação especial para serial
+    if (label.toLowerCase().includes('serial')) {
+      const serialValue = value as string;
+      if (serialValue && serialValue.length > 0) {
+        if (serialValue.length === 15) {
+          return <CheckCircle className="w-4 h-4 text-green-500" />;
+        } else {
+          return <AlertCircle className="w-4 h-4 text-red-500" />;
+        }
+      }
+    } else {
+      if (!isValid && (value as string)?.length > 0) return <AlertCircle className="w-4 h-4 text-red-500" />;
+      if (isValid && (value as string)?.length > 0 && required) return <CheckCircle className="w-4 h-4 text-green-500" />;
+    }
+    
     return null;
   };
 
@@ -80,6 +101,8 @@ const FormField: React.FC<FormFieldProps> = ({
       className
     );
 
+    const effectiveMaxLength = label.toLowerCase().includes('serial') ? 15 : maxLength;
+
     switch (type) {
       case 'textarea':
         return (
@@ -91,15 +114,20 @@ const FormField: React.FC<FormFieldProps> = ({
               onBlur={() => setFocused(false)}
               placeholder={placeholder}
               className={cn(baseInputClass, "min-h-[120px] resize-none leading-relaxed")}
-              maxLength={maxLength}
+              maxLength={effectiveMaxLength}
             />
             <div className="flex justify-between items-center mt-2">
               <div className="absolute top-3 right-3">
                 {getStatusIcon()}
               </div>
-              {maxLength && (
+              {effectiveMaxLength && (
                 <div className="text-xs text-gray-500 ml-auto">
-                  {(value as string).length}/{maxLength}
+                  {(value as string).length}/{effectiveMaxLength}
+                  {label.toLowerCase().includes('serial') && (
+                    <span className="ml-2 text-red-500">
+                      (Exatamente 15 caracteres)
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -166,11 +194,21 @@ const FormField: React.FC<FormFieldProps> = ({
               onBlur={() => setFocused(false)}
               placeholder={placeholder}
               className={cn(baseInputClass, "h-12")}
-              maxLength={maxLength}
+              maxLength={effectiveMaxLength}
             />
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
               {getStatusIcon()}
             </div>
+            {label.toLowerCase().includes('serial') && (
+              <div className="text-xs text-gray-500 mt-1">
+                {(value as string).length}/15 caracteres
+                {(value as string).length > 0 && (value as string).length !== 15 && (
+                  <span className="text-red-500 ml-2">
+                    (Deve ter exatamente 15 caracteres)
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         );
     }
