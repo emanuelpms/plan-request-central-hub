@@ -8,7 +8,7 @@ import { Shield, Lock, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface LoginFormProps {
-  onLogin: (user: { username: string; role: string }) => void;
+  onLogin: (user: { username: string; role: string; name: string }) => void;
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
@@ -20,17 +20,40 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
   const handleLogin = async () => {
     setLoading(true);
     
-    // Simular autenticação (você pode trocar por autenticação real)
-    if (username === 'admin' && password === 'admin123') {
-      onLogin({ username: 'admin', role: 'administrator' });
+    // Buscar usuários cadastrados
+    const savedUsers = localStorage.getItem('miniescopo_users');
+    const users = savedUsers ? JSON.parse(savedUsers) : [
+      {
+        id: '1',
+        username: 'admin',
+        password: 'admin123',
+        role: 'admin',
+        name: 'Administrador',
+        email: 'admin@sistema.com',
+        active: true
+      }
+    ];
+
+    const user = users.find((u: any) => 
+      u.username === username && 
+      u.password === password && 
+      u.active
+    );
+
+    if (user) {
+      onLogin({ 
+        username: user.username, 
+        role: user.role,
+        name: user.name
+      });
       toast({
         title: "Login realizado com sucesso!",
-        description: "Bem-vindo ao sistema MiniEscopo.",
+        description: `Bem-vindo ao sistema, ${user.name}.`,
       });
     } else {
       toast({
         title: "Erro de autenticação",
-        description: "Usuário ou senha incorretos.",
+        description: "Usuário, senha incorretos ou usuário inativo.",
         variant: "destructive"
       });
     }

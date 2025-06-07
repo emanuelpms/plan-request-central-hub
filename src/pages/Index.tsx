@@ -52,26 +52,32 @@ const Index = () => {
       case 'INSTALACAO_DEMO':
         return <InstalacaoDemoTab />;
       case 'RAWDATA':
-        return <RawDataTab />;
+        return user?.role === 'admin' ? <RawDataTab /> : <MenuTab onNavigate={setActiveTab} notifications={notifications} />;
       default:
         return <MenuTab onNavigate={setActiveTab} notifications={notifications} />;
     }
   };
 
+  const isAdmin = user?.role === 'admin';
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header 
         title="Rep - SOLICITAÇÃO DEMO" 
-        onOpenConfig={user?.role === 'admin' ? () => setShowAdminConfig(true) : undefined}
+        onOpenConfig={isAdmin ? () => setShowAdminConfig(true) : undefined}
         notificationCount={notifications.length}
       />
-      <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <Navigation 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab}
+        isAdmin={isAdmin}
+      />
       <div className="flex-1">
         {renderActiveTab()}
       </div>
 
       {/* Admin Config Modal */}
-      {showAdminConfig && (
+      {showAdminConfig && isAdmin && (
         <AdminConfig onClose={() => setShowAdminConfig(false)} />
       )}
 

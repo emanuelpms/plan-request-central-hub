@@ -241,7 +241,7 @@ const DemonstracaoTab: React.FC = () => {
                 label="TELEFONE 1"
                 value={formData.telefone1 || ''}
                 onChange={(value) => handleFieldChange('telefone1', value as string)}
-                type="phone"
+                type="tel"
                 required
               />
 
@@ -249,7 +249,7 @@ const DemonstracaoTab: React.FC = () => {
                 label="TELEFONE 2"
                 value={formData.telefone2 || ''}
                 onChange={(value) => handleFieldChange('telefone2', value as string)}
-                type="phone"
+                type="tel"
                 required
               />
             </div>
