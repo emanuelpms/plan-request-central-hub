@@ -52,8 +52,10 @@
                     <span class="btn-loading hidden">Entrando...</span>
                 </button>
                 <div class="login-info">
-                    <p>Usuário padrão: <strong>admin</strong></p>
-                    <p>Senha padrão: <strong>admin123</strong></p>
+                    <h4>Usuários do Sistema:</h4>
+                    <p><strong>Admin:</strong> admin / admin123</p>
+                    <p><strong>Técnico:</strong> tecnico / tec123</p>
+                    <p><strong>Vendedor:</strong> vendas / vendas123</p>
                 </div>
             </form>
         </div>
@@ -93,7 +95,7 @@
                         </button>
                     </div>
                     <div id="admin-config-btn" class="config-btn hidden">
-                        <button class="header-btn">
+                        <button class="header-btn" onclick="showAdminConfig()">
                             <i class="fas fa-cog"></i>
                         </button>
                     </div>
@@ -102,7 +104,8 @@
                             <i class="fas fa-user"></i>
                         </div>
                         <span id="user-name">Usuário</span>
-                        <button id="logout-btn" class="logout-btn">
+                        <span id="user-role" class="user-role"></span>
+                        <button id="logout-btn" class="logout-btn" onclick="logout()">
                             <i class="fas fa-sign-out-alt"></i>
                         </button>
                     </div>
@@ -113,43 +116,43 @@
         <!-- Navigation -->
         <nav class="app-navigation">
             <div class="nav-tabs">
-                <button class="nav-tab active" data-tab="MENU">
+                <button class="nav-tab active" data-tab="MENU" onclick="switchTab('MENU')">
                     <div class="tab-icon">
                         <i class="fas fa-bars"></i>
                     </div>
                     <span>MENU</span>
                 </button>
-                <button class="nav-tab" data-tab="SERVICE">
+                <button class="nav-tab" data-tab="SERVICE" onclick="switchTab('SERVICE')">
                     <div class="tab-icon">
                         <i class="fas fa-tools"></i>
                     </div>
                     <span>SERVIÇO</span>
                 </button>
-                <button class="nav-tab" data-tab="DEMONSTRACAO">
+                <button class="nav-tab" data-tab="DEMONSTRACAO" onclick="switchTab('DEMONSTRACAO')">
                     <div class="tab-icon">
                         <i class="fas fa-desktop"></i>
                     </div>
                     <span>DEMONSTRAÇÃO</span>
                 </button>
-                <button class="nav-tab" data-tab="APLICACAO">
+                <button class="nav-tab" data-tab="APLICACAO" onclick="switchTab('APLICACAO')">
                     <div class="tab-icon">
                         <i class="fas fa-file-alt"></i>
                     </div>
                     <span>APLICAÇÃO</span>
                 </button>
-                <button class="nav-tab" data-tab="PASSWORD">
+                <button class="nav-tab" data-tab="PASSWORD" onclick="switchTab('PASSWORD')">
                     <div class="tab-icon">
                         <i class="fas fa-key"></i>
                     </div>
                     <span>SENHA</span>
                 </button>
-                <button class="nav-tab" data-tab="INSTALACAO_DEMO">
+                <button class="nav-tab" data-tab="INSTALACAO_DEMO" onclick="switchTab('INSTALACAO_DEMO')">
                     <div class="tab-icon">
                         <i class="fas fa-download"></i>
                     </div>
                     <span>INSTALAÇÃO DEMO</span>
                 </button>
-                <button class="nav-tab hidden" data-tab="RAWDATA" id="rawdata-tab">
+                <button class="nav-tab hidden" data-tab="RAWDATA" id="rawdata-tab" onclick="switchTab('RAWDATA')">
                     <div class="tab-icon">
                         <i class="fas fa-database"></i>
                     </div>
@@ -173,10 +176,29 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>Configurações Administrativas</h2>
-                    <button class="modal-close">&times;</button>
+                    <button class="modal-close" onclick="closeModal()">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <!-- Admin content will be loaded here -->
+                    <div class="config-section">
+                        <h3>Usuários do Sistema</h3>
+                        <div class="user-list">
+                            <div class="user-item">
+                                <strong>Administrador</strong> (admin) - Acesso total
+                            </div>
+                            <div class="user-item">
+                                <strong>Técnico</strong> (tecnico) - Serviços e dados
+                            </div>
+                            <div class="user-item">
+                                <strong>Vendedor</strong> (vendas) - Demonstrações e aplicações
+                            </div>
+                        </div>
+                    </div>
+                    <div class="config-section">
+                        <h3>Configurações de Email</h3>
+                        <button class="config-btn" onclick="showEmailConfig()">
+                            <i class="fas fa-envelope"></i> Configurar Emails
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
