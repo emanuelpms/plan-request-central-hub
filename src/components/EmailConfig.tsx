@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, Save, Settings } from 'lucide-react';
+import { Mail, Save, Settings, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FormType } from '../types';
 
@@ -107,7 +107,7 @@ const EmailConfig: React.FC<EmailConfigProps> = ({ onClose }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Mail className="w-6 h-6" />
-              <CardTitle className="text-xl">Configuração de Emails</CardTitle>
+              <CardTitle className="text-xl">Configuração de Emails - Outlook</CardTitle>
             </div>
             <Button
               variant="ghost"
@@ -120,6 +120,26 @@ const EmailConfig: React.FC<EmailConfigProps> = ({ onClose }) => {
           </div>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
+          
+          {/* Aviso importante sobre o Outlook */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-amber-800 mb-2">Configuração do Microsoft Outlook</h4>
+                <p className="text-sm text-amber-700 mb-2">
+                  Este sistema está configurado para usar <strong>EXCLUSIVAMENTE</strong> o Microsoft Outlook para envio de emails.
+                </p>
+                <ul className="text-xs text-amber-600 space-y-1 list-disc list-inside">
+                  <li>O Outlook deve estar instalado e configurado no computador</li>
+                  <li>Os emails serão criados automaticamente com o layout exato dos formulários</li>
+                  <li>O título será gerado automaticamente: Motivo - Cliente - Modelo - Serial</li>
+                  <li>Configure abaixo os destinatários para cada tipo de formulário</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           <div>
             <Label className="text-sm font-semibold mb-2 block">Tipo de Formulário</Label>
             <Select
@@ -141,7 +161,9 @@ const EmailConfig: React.FC<EmailConfigProps> = ({ onClose }) => {
 
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <Label className="text-sm font-semibold mb-2 block">Emails Para (separados por vírgula)</Label>
+              <Label className="text-sm font-semibold mb-2 block">
+                Emails Para <span className="text-gray-500">(separados por vírgula)</span>
+              </Label>
               <Textarea
                 value={currentConfig.toEmails.join(', ')}
                 onChange={(e) => updateConfiguration({
@@ -150,10 +172,15 @@ const EmailConfig: React.FC<EmailConfigProps> = ({ onClose }) => {
                 className="min-h-[100px]"
                 placeholder="email1@empresa.com, email2@empresa.com"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Estes emails aparecerão no campo "Para" do Outlook
+              </p>
             </div>
 
             <div>
-              <Label className="text-sm font-semibold mb-2 block">Emails Cópia (separados por vírgula)</Label>
+              <Label className="text-sm font-semibold mb-2 block">
+                Emails Cópia <span className="text-gray-500">(separados por vírgula)</span>
+              </Label>
               <Textarea
                 value={currentConfig.ccEmails.join(', ')}
                 onChange={(e) => updateConfiguration({
@@ -162,29 +189,40 @@ const EmailConfig: React.FC<EmailConfigProps> = ({ onClose }) => {
                 className="min-h-[100px]"
                 placeholder="gerencia@empresa.com, supervisor@empresa.com"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Estes emails aparecerão no campo "Cc" do Outlook
+              </p>
             </div>
           </div>
 
           <div>
-            <Label className="text-sm font-semibold mb-2 block">Assunto do Email</Label>
+            <Label className="text-sm font-semibold mb-2 block">
+              Formato do Assunto do Email
+            </Label>
             <Input
               value={currentConfig.subject}
               onChange={(e) => updateConfiguration({ subject: e.target.value })}
               placeholder="Use {razaoSocial}, {nomeCliente}, etc. para substituições automáticas"
             />
             <p className="text-xs text-gray-500 mt-1">
+              O formato final será: <strong>Motivo - Cliente - Modelo - Serial</strong>
+            </p>
+            <p className="text-xs text-gray-400">
               Variáveis disponíveis: {'{razaoSocial}'}, {'{nomeCliente}'}, {'{modelo}'}, {'{serial}'}
             </p>
           </div>
 
           <div>
-            <Label className="text-sm font-semibold mb-2 block">Mensagem Personalizada</Label>
+            <Label className="text-sm font-semibold mb-2 block">Mensagem Personalizada (Opcional)</Label>
             <Textarea
               value={currentConfig.customMessage}
               onChange={(e) => updateConfiguration({ customMessage: e.target.value })}
               className="min-h-[120px]"
-              placeholder="Mensagem que aparecerá no início do email"
+              placeholder="Mensagem que aparecerá no início do email (opcional)"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Esta mensagem aparecerá antes do conteúdo formatado do formulário
+            </p>
           </div>
 
           <div className="flex gap-4 pt-4 border-t">
@@ -198,6 +236,29 @@ const EmailConfig: React.FC<EmailConfigProps> = ({ onClose }) => {
             <Button variant="outline" onClick={onClose}>
               Cancelar
             </Button>
+          </div>
+
+          {/* Preview da configuração */}
+          <div className="bg-gray-50 rounded-lg p-4 border">
+            <h4 className="font-semibold text-gray-800 mb-3">Preview da Configuração:</h4>
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="font-medium text-gray-600">Para:</span> 
+                <span className="ml-2 text-gray-800">{currentConfig.toEmails.join(', ')}</span>
+              </div>
+              <div>
+                <span className="font-medium text-gray-600">Cópia:</span> 
+                <span className="ml-2 text-gray-800">{currentConfig.ccEmails.join(', ')}</span>
+              </div>
+              <div>
+                <span className="font-medium text-gray-600">Assunto:</span> 
+                <span className="ml-2 text-gray-800">{currentConfig.subject}</span>
+              </div>
+              <div>
+                <span className="font-medium text-gray-600">Aplicativo:</span> 
+                <span className="ml-2 text-blue-600 font-medium">Microsoft Outlook (Obrigatório)</span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

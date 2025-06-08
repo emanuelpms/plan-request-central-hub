@@ -417,9 +417,13 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ onClose }) => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Configure os destinatários e templates de email para cada tipo de formulário. 
+                    Os emails serão enviados automaticamente via Outlook com o layout exato dos formulários.
+                  </p>
                   <Button onClick={() => setShowEmailConfig(true)} className="w-full">
                     <Mail className="w-4 h-4 mr-2" />
-                    Abrir Configuração de E-mails
+                    Configurar E-mails do Sistema
                   </Button>
                 </CardContent>
               </Card>

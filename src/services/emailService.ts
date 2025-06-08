@@ -374,7 +374,7 @@ const generateEmailHTML = (formData: FormData, formType: FormType, motivo: strin
 };
 
 export const sendEmailViaOutlook = async (formData: FormData, formType: FormType, motivo: string): Promise<void> => {
-  // Recuperar configurações de email
+  // Recuperar configurações de email do admin
   const emailConfig = localStorage.getItem('miniescopo_email_config');
   let config = null;
   
@@ -386,35 +386,50 @@ export const sendEmailViaOutlook = async (formData: FormData, formType: FormType
   const subject = generateEmailSubject(formData, motivo);
   const htmlBody = generateEmailHTML(formData, formType, motivo);
   
-  // Gerar lista de destinatários
+  // Gerar lista de destinatários baseada na configuração do admin
   const toEmails = config?.toEmails?.join(';') || 'vendas@empresa.com';
   const ccEmails = config?.ccEmails?.join(';') || '';
 
-  // Criar URL do Outlook
-  const outlookUrl = `outlook:?to=${encodeURIComponent(toEmails)}&cc=${encodeURIComponent(ccEmails)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(htmlBody)}`;
+  // Criar URL do Outlook (obrigatório uso do Outlook app)
+  const outlookUrl = `outlook:?to=${encodeURIComponent(toEmails)}&cc=${encodeURIComponent(ccEmails)}&subject=${encodeURIComponent(subject)}&bodyformat=html&body=${encodeURIComponent(htmlBody)}`;
   
   try {
-    // Tentar abrir o Outlook
+    console.log('Abrindo Outlook com:', {
+      to: toEmails,
+      cc: ccEmails,
+      subject: subject,
+      htmlBody: htmlBody.substring(0, 200) + '...' // Log apenas parte do corpo para debug
+    });
+
+    // Tentar abrir o Outlook (OBRIGATÓRIO)
     window.location.href = outlookUrl;
     
-    // Fallback: se não conseguir abrir o Outlook, mostrar modal com o conteúdo
+    // Fallback: se não conseguir abrir o Outlook, mostrar aviso
     setTimeout(() => {
-      const newWindow = window.open('', '_blank', 'width=800,height=600');
-      if (newWindow) {
-        newWindow.document.write(htmlBody);
-        newWindow.document.close();
+      const userConfirm = confirm(
+        'O Outlook deveria ter aberto automaticamente.\n\n' +
+        'Se não abriu, clique em OK para ver o conteúdo do email em uma nova janela.\n\n' +
+        'IMPORTANTE: Este sistema foi configurado para usar EXCLUSIVAMENTE o Microsoft Outlook.'
+      );
+      
+      if (userConfirm) {
+        const newWindow = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
+        if (newWindow) {
+          newWindow.document.write(htmlBody);
+          newWindow.document.close();
+          newWindow.document.title = subject;
+        }
       }
-    }, 1000);
+    }, 2000);
     
   } catch (error) {
     console.error('Erro ao abrir Outlook:', error);
     
-    // Fallback: abrir em nova janela
-    const newWindow = window.open('', '_blank', 'width=800,height=600');
-    if (newWindow) {
-      newWindow.document.write(htmlBody);
-      newWindow.document.close();
-    }
+    alert(
+      'Erro ao abrir o Microsoft Outlook.\n\n' +
+      'Certifique-se de que o Outlook está instalado e configurado.\n\n' +
+      'O sistema foi configurado para usar EXCLUSIVAMENTE o Microsoft Outlook para envio de emails.'
+    );
   }
 };
 
