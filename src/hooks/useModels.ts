@@ -19,7 +19,7 @@ export function useModels() {
         setModels(allModels.filter((m: Model) => m.active));
       } else {
         // Modelos padrão se nenhum foi configurado
-        const defaultModels = [
+        const defaultModels: Model[] = [
           { id: '1', name: 'LABGEO PT1000', category: 'HUMANO', active: true },
           { id: '2', name: 'LABGEO PT3000', category: 'HUMANO', active: true },
           { id: '3', name: 'LABGEO PT1000 VET', category: 'VETERINARIO', active: true },

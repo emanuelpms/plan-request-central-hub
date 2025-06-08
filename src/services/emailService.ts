@@ -11,6 +11,17 @@ const generateEmailSubject = (formData: FormData, motivo: string): string => {
 
 // Template que replica exatamente o layout da tela com cores e design
 const generateEmailHTML = (formData: FormData, formType: FormType, motivo: string): string => {
+  // Definir variáveis dos dados do cliente
+  const cliente = formData.nomeCliente || formData.razaoSocial || 'Cliente';
+  const cpfCnpj = formData.cpfCnpj || 'Não informado';
+  const telefone1 = formData.telefone1 || 'Não informado';
+  const telefone2 = formData.telefone2 || 'Não informado';
+  const email = formData.email || 'Não informado';
+  const responsavel = formData.responsavel || 'Não informado';
+  const setorResponsavel = formData.setorResponsavel || '';
+  const dataNascimento = formData.dataNascimento || '';
+  const endereco = `${formData.endereco || ''}, ${formData.numeroEndereco || ''}, ${formData.complemento || ''}, ${formData.bairro || ''}, ${formData.cidade || ''} - ${formData.estado || ''}, CEP: ${formData.cep || ''}`.replace(/,\s*,/g, ',').replace(/^,\s*/, '').replace(/,\s*$/, '');
+
   // Cores e gradientes baseados no tipo de formulário
   const getThemeColors = (type: FormType) => {
     switch (type) {
