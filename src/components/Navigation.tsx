@@ -6,6 +6,7 @@ import { Settings, Monitor, FileText, Key, Download, Database, Menu } from 'luci
 interface NavigationProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  isAdmin: boolean;
 }
 
 const tabs = [
@@ -18,12 +19,19 @@ const tabs = [
   { id: 'RAWDATA', label: 'DADOS', icon: Database },
 ];
 
-const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
+const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, isAdmin }) => {
+  const visibleTabs = tabs.filter(tab => {
+    if (tab.id === 'RAWDATA') {
+      return isAdmin;
+    }
+    return true;
+  });
+
   return (
     <div className="bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-lg sticky top-0 z-40">
       <div className="overflow-x-auto scrollbar-hide">
         <div className="flex min-w-max px-4">
-          {tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const IconComponent = tab.icon;
             const isActive = activeTab === tab.id;
             
