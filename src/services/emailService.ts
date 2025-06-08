@@ -1,7 +1,6 @@
-
 import { FormData, FormType } from '../types';
 
-// Função para gerar o título do email conforme solicitado
+// Função para gerar o título do email conforme solicitado: Motivo - Cliente - Modelo - Serial
 const generateEmailSubject = (formData: FormData, motivo: string): string => {
   const cliente = formData.nomeCliente || formData.razaoSocial || 'Cliente';
   const modelo = formData.modelo || 'Modelo não especificado';
@@ -10,18 +9,8 @@ const generateEmailSubject = (formData: FormData, motivo: string): string => {
   return `${motivo} - ${cliente} - ${modelo} - ${serial}`;
 };
 
-// Template que replica exatamente o layout da tela
+// Template que replica exatamente o layout da tela com cores e design
 const generateEmailHTML = (formData: FormData, formType: FormType, motivo: string): string => {
-  const cliente = formData.nomeCliente || formData.razaoSocial || '';
-  const cpfCnpj = formData.cpfCnpj || '';
-  const telefone1 = formData.telefone1 || '';
-  const telefone2 = formData.telefone2 || '';
-  const email = formData.email || '';
-  const responsavel = formData.responsavel || '';
-  const setorResponsavel = formData.setorResponsavel || '';
-  const dataNascimento = formData.dataNascimento || '';
-  const endereco = `${formData.endereco || ''}, ${formData.numero || ''}, ${formData.bairro || ''}, ${formData.cidade || ''}, ${formData.estado || ''}, CEP: ${formData.cep || ''}`;
-
   // Cores e gradientes baseados no tipo de formulário
   const getThemeColors = (type: FormType) => {
     switch (type) {
@@ -364,7 +353,7 @@ const generateEmailHTML = (formData: FormData, formType: FormType, motivo: strin
         <div style="background: #f3f4f6; padding: 24px; border-radius: 12px; text-align: center; margin-top: 32px; border: 1px solid #e5e7eb;">
           <p style="margin: 0; color: #6b7280; font-size: 14px;">
             <strong>Rep - Sistema de Gestão Empresarial</strong><br/>
-            Email gerado automaticamente em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+            Email gerado automaticamente via Microsoft Outlook em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
           </p>
         </div>
       </div>
@@ -374,6 +363,8 @@ const generateEmailHTML = (formData: FormData, formType: FormType, motivo: strin
 };
 
 export const sendEmailViaOutlook = async (formData: FormData, formType: FormType, motivo: string): Promise<void> => {
+  console.log('Iniciando envio via Outlook exclusivo...');
+  
   // Recuperar configurações de email do admin
   const emailConfig = localStorage.getItem('miniescopo_email_config');
   let config = null;
@@ -387,48 +378,60 @@ export const sendEmailViaOutlook = async (formData: FormData, formType: FormType
   const htmlBody = generateEmailHTML(formData, formType, motivo);
   
   // Gerar lista de destinatários baseada na configuração do admin
-  const toEmails = config?.toEmails?.join(';') || 'vendas@empresa.com';
+  const toEmails = config?.toEmails?.join(';') || 'contato@empresa.com';
   const ccEmails = config?.ccEmails?.join(';') || '';
 
-  // Criar URL do Outlook (obrigatório uso do Outlook app)
+  console.log('Configuração de email:', {
+    to: toEmails,
+    cc: ccEmails,
+    subject: subject
+  });
+
+  // Criar URL do Outlook (OBRIGATÓRIO uso do Outlook app)
   const outlookUrl = `outlook:?to=${encodeURIComponent(toEmails)}&cc=${encodeURIComponent(ccEmails)}&subject=${encodeURIComponent(subject)}&bodyformat=html&body=${encodeURIComponent(htmlBody)}`;
   
   try {
-    console.log('Abrindo Outlook com:', {
-      to: toEmails,
-      cc: ccEmails,
-      subject: subject,
-      htmlBody: htmlBody.substring(0, 200) + '...' // Log apenas parte do corpo para debug
-    });
-
-    // Tentar abrir o Outlook (OBRIGATÓRIO)
+    console.log('Tentando abrir Microsoft Outlook...');
+    
+    // Abrir o Microsoft Outlook (OBRIGATÓRIO)
     window.location.href = outlookUrl;
     
-    // Fallback: se não conseguir abrir o Outlook, mostrar aviso
+    // Timeout para verificar se o Outlook abriu
     setTimeout(() => {
-      const userConfirm = confirm(
-        'O Outlook deveria ter aberto automaticamente.\n\n' +
-        'Se não abriu, clique em OK para ver o conteúdo do email em uma nova janela.\n\n' +
-        'IMPORTANTE: Este sistema foi configurado para usar EXCLUSIVAMENTE o Microsoft Outlook.'
+      const confirmOutlook = confirm(
+        '🚀 SISTEMA CONFIGURADO PARA MICROSOFT OUTLOOK\n\n' +
+        '✅ O Microsoft Outlook deveria ter aberto automaticamente.\n\n' +
+        '❌ Se não abriu, clique em OK para ver uma prévia do email.\n\n' +
+        '⚠️ IMPORTANTE: Este sistema usa EXCLUSIVAMENTE o Microsoft Outlook para envios.'
       );
       
-      if (userConfirm) {
-        const newWindow = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
-        if (newWindow) {
-          newWindow.document.write(htmlBody);
-          newWindow.document.close();
-          newWindow.document.title = subject;
+      if (confirmOutlook) {
+        // Mostrar preview do email em nova janela
+        const previewWindow = window.open('', '_blank', 'width=1000,height=800,scrollbars=yes,resizable=yes');
+        if (previewWindow) {
+          previewWindow.document.write(htmlBody);
+          previewWindow.document.close();
+          previewWindow.document.title = `PREVIEW: ${subject}`;
+          
+          // Adicionar aviso na preview
+          const warningDiv = previewWindow.document.createElement('div');
+          warningDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #dc2626; color: white; padding: 10px; text-align: center; font-weight: bold; z-index: 9999;';
+          warningDiv.innerHTML = '⚠️ PREVIEW DO EMAIL - Para enviar, use o Microsoft Outlook instalado no computador';
+          previewWindow.document.body.insertBefore(warningDiv, previewWindow.document.body.firstChild);
         }
       }
     }, 2000);
     
   } catch (error) {
-    console.error('Erro ao abrir Outlook:', error);
+    console.error('Erro ao abrir Microsoft Outlook:', error);
     
     alert(
-      'Erro ao abrir o Microsoft Outlook.\n\n' +
-      'Certifique-se de que o Outlook está instalado e configurado.\n\n' +
-      'O sistema foi configurado para usar EXCLUSIVAMENTE o Microsoft Outlook para envio de emails.'
+      '❌ ERRO AO ABRIR MICROSOFT OUTLOOK\n\n' +
+      '🔧 Certifique-se de que o Microsoft Outlook está:\n' +
+      '• Instalado no computador\n' +
+      '• Configurado com uma conta de email\n' +
+      '• Definido como cliente de email padrão\n\n' +
+      '📧 Este sistema foi configurado para usar EXCLUSIVAMENTE o Microsoft Outlook.'
     );
   }
 };

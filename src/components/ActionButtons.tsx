@@ -6,6 +6,7 @@ import EmailConfig from './EmailConfig';
 import { sendEmailViaOutlook } from '@/services/emailService';
 import { FormData, FormType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ActionButtonsProps {
   onSave: () => void;
@@ -28,6 +29,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 }) => {
   const [showConfig, setShowConfig] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleSendEmail = async () => {
     try {
@@ -72,7 +74,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
       
       toast({
         title: "Sucesso",
-        description: "Email aberto no Outlook. Verifique se foi aberto corretamente."
+        description: "Email sendo aberto no Microsoft Outlook...",
       });
 
       // Chamar onSend se fornecido
@@ -84,11 +86,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
       console.error('Erro ao enviar email:', error);
       toast({
         title: "Erro",
-        description: "Erro ao abrir o Outlook. Tente novamente.",
+        description: "Erro ao abrir o Microsoft Outlook. Verifique se está instalado.",
         variant: "destructive"
       });
     }
   };
+
+  // Só admins podem configurar emails
+  const canConfigureEmail = user?.role === 'admin';
 
   return (
     <>
@@ -121,7 +126,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
           ENVIAR EMAIL
         </Button>
 
-        {showEmailConfig && (
+        {showEmailConfig && canConfigureEmail && (
           <Button
             type="button"
             onClick={() => setShowConfig(true)}
@@ -134,7 +139,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         )}
       </div>
 
-      {showConfig && (
+      {showConfig && canConfigureEmail && (
         <EmailConfig onClose={() => setShowConfig(false)} />
       )}
     </>
