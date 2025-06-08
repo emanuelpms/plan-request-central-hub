@@ -1,0 +1,188 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema MiniEscopo V4.9</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-icon">
+                <i class="fas fa-cog fa-spin"></i>
+            </div>
+            <h2>Sistema MiniEscopo</h2>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login-container" class="login-container hidden">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h1>Sistema MiniEscopo</h1>
+                <p>Entre com suas credenciais</p>
+            </div>
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="username">Usuário</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="username" placeholder="Digite seu usuário" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="password">Senha</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="password" placeholder="Digite sua senha" required>
+                    </div>
+                </div>
+                <button type="submit" class="login-btn">
+                    <span class="btn-text">Entrar no Sistema</span>
+                    <span class="btn-loading hidden">Entrando...</span>
+                </button>
+                <div class="login-info">
+                    <p>Usuário padrão: <strong>admin</strong></p>
+                    <p>Senha padrão: <strong>admin123</strong></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="main-app" class="main-app hidden">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="logo-section">
+                        <div class="logo-icon">
+                            <i class="fas fa-cogs"></i>
+                            <div class="sparkle">
+                                <i class="fas fa-sparkles"></i>
+                            </div>
+                        </div>
+                        <div class="title-section">
+                            <h1>Sistema MiniEscopo</h1>
+                            <div class="title-meta">
+                                <span class="version-badge">V4.9</span>
+                                <span class="subtitle">Sistema de Gestão Empresarial</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="date-display">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span id="current-date"></span>
+                    </div>
+                    <div class="notifications">
+                        <button class="notification-btn">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-count">0</span>
+                        </button>
+                    </div>
+                    <div id="admin-config-btn" class="config-btn hidden">
+                        <button class="header-btn">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <span id="user-name">Usuário</span>
+                        <button id="logout-btn" class="logout-btn">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="app-navigation">
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-tab="MENU">
+                    <div class="tab-icon">
+                        <i class="fas fa-bars"></i>
+                    </div>
+                    <span>MENU</span>
+                </button>
+                <button class="nav-tab" data-tab="SERVICE">
+                    <div class="tab-icon">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                    <span>SERVIÇO</span>
+                </button>
+                <button class="nav-tab" data-tab="DEMONSTRACAO">
+                    <div class="tab-icon">
+                        <i class="fas fa-desktop"></i>
+                    </div>
+                    <span>DEMONSTRAÇÃO</span>
+                </button>
+                <button class="nav-tab" data-tab="APLICACAO">
+                    <div class="tab-icon">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <span>APLICAÇÃO</span>
+                </button>
+                <button class="nav-tab" data-tab="PASSWORD">
+                    <div class="tab-icon">
+                        <i class="fas fa-key"></i>
+                    </div>
+                    <span>SENHA</span>
+                </button>
+                <button class="nav-tab" data-tab="INSTALACAO_DEMO">
+                    <div class="tab-icon">
+                        <i class="fas fa-download"></i>
+                    </div>
+                    <span>INSTALAÇÃO DEMO</span>
+                </button>
+                <button class="nav-tab hidden" data-tab="RAWDATA" id="rawdata-tab">
+                    <div class="tab-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <span>DADOS</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Content Area -->
+        <main class="app-content">
+            <div id="content-area">
+                <!-- Content will be loaded here -->
+            </div>
+        </main>
+
+        <!-- Toast Container -->
+        <div id="toast-container" class="toast-container"></div>
+
+        <!-- Admin Config Modal -->
+        <div id="admin-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Configurações Administrativas</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Admin content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="emailService.js"></script>
+</body>
+</html>
