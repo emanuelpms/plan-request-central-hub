@@ -1,1303 +1,1561 @@
 
-// Sistema MiniEscopo - JavaScript Puro
-const AppState = {
-    currentUser: null,
-    currentTab: 'MENU',
-    formData: {},
-    isLoading: false
-};
-
-// Configuração de usuários
-const USERS = {
-    admin: {
-        password: 'admin123',
-        role: 'admin',
-        name: 'Administrador',
-        permissions: ['all']
-    },
-    tecnico: {
-        password: 'tec123',
-        role: 'tecnico',
-        name: 'Técnico',
-        permissions: ['service', 'data', 'demonstracao']
-    },
-    vendas: {
-        password: 'vendas123',
-        role: 'vendedor',
-        name: 'Vendedor',
-        permissions: ['demonstracao', 'aplicacao', 'password']
+// Sistema MiniEscopo V4.9 - Aplicação Principal
+class MiniEscopoApp {
+    constructor() {
+        this.currentUser = null;
+        this.currentTab = 'dashboard';
+        this.notifications = [];
+        this.forms = this.loadForms();
+        this.init();
     }
-};
 
-// Utility functions
-const Utils = {
-    showToast(message, type = 'success') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `
-            <div class="toast-content">
-                <div class="toast-icon">
-                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-                </div>
-                <div class="toast-text">
-                    <strong>${type === 'success' ? 'Sucesso' : type === 'error' ? 'Erro' : 'Aviso'}</strong>
-                    <p>${message}</p>
-                </div>
-            </div>
-        `;
-        container.appendChild(toast);
+    // Inicialização da aplicação
+    init() {
+        this.setupEventListeners();
+        this.showLoading();
         
+        // Simula carregamento inicial
         setTimeout(() => {
-            toast.remove();
-        }, 5000);
-    },
-
-    formatDate(date = new Date()) {
-        return date.toLocaleDateString('pt-BR', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    },
-
-    saveToStorage(key, data) {
-        localStorage.setItem(key, JSON.stringify(data));
-    },
-
-    getFromStorage(key, defaultValue = null) {
-        const stored = localStorage.getItem(key);
-        return stored ? JSON.parse(stored) : defaultValue;
-    },
-
-    generateId() {
-        return Date.now().toString() + Math.random().toString(36).substr(2, 9);
-    },
-
-    validateForm(formData, requiredFields) {
-        const errors = [];
-        requiredFields.forEach(field => {
-            if (!formData[field] || formData[field].toString().trim() === '') {
-                errors.push(`Campo ${field} é obrigatório`);
-            }
-        });
-        return errors;
-    },
-
-    hasPermission(permission) {
-        if (!AppState.currentUser) return false;
-        const user = USERS[AppState.currentUser.username];
-        return user && (user.permissions.includes('all') || user.permissions.includes(permission));
-    },
-
-    formatCPF(value) {
-        return value
-            .replace(/\D/g, '')
-            .replace(/(\d{3})(\d)/, '$1.$2')
-            .replace(/(\d{3})(\d)/, '$1.$2')
-            .replace(/(\d{3})(\d{1,2})/, '$1-$2')
-            .replace(/(-\d{2})\d+?$/, '$1');
-    },
-
-    formatCNPJ(value) {
-        return value
-            .replace(/\D/g, '')
-            .replace(/(\d{2})(\d)/, '$1.$2')
-            .replace(/(\d{3})(\d)/, '$1.$2')
-            .replace(/(\d{3})(\d)/, '$1/$2')
-            .replace(/(\d{4})(\d{1,2})/, '$1-$2')
-            .replace(/(-\d{2})\d+?$/, '$1');
-    },
-
-    formatPhone(value) {
-        return value
-            .replace(/\D/g, '')
-            .replace(/(\d{2})(\d)/, '($1) $2')
-            .replace(/(\d{4})(\d)/, '$1-$2')
-            .replace(/(\d{4})-(\d)(\d{4})/, '$1$2-$3')
-            .replace(/(-\d{4})\d+?$/, '$1');
-    },
-
-    formatCEP(value) {
-        return value
-            .replace(/\D/g, '')
-            .replace(/(\d{5})(\d)/, '$1-$2')
-            .replace(/(-\d{3})\d+?$/, '$1');
-    }
-};
-
-// Authentication functions
-function login(username, password) {
-    const user = USERS[username];
-    if (user && user.password === password) {
-        AppState.currentUser = {
-            username: username,
-            role: user.role,
-            name: user.name
-        };
-        Utils.saveToStorage('miniescopo_current_user', AppState.currentUser);
-        return true;
-    }
-    return false;
-}
-
-function logout() {
-    AppState.currentUser = null;
-    localStorage.removeItem('miniescopo_current_user');
-    showLogin();
-}
-
-function getCurrentUser() {
-    if (!AppState.currentUser) {
-        AppState.currentUser = Utils.getFromStorage('miniescopo_current_user');
-    }
-    return AppState.currentUser;
-}
-
-function isAdmin() {
-    const user = getCurrentUser();
-    return user && user.role === 'admin';
-}
-
-// UI Components
-function createFormField(type, name, label, required = false, options = null, value = '', placeholder = '') {
-    const group = document.createElement('div');
-    group.className = 'form-group';
-    
-    const labelEl = document.createElement('label');
-    labelEl.textContent = label + (required ? ' *' : '');
-    labelEl.setAttribute('for', name);
-    group.appendChild(labelEl);
-    
-    let input;
-    
-    switch (type) {
-        case 'select':
-            input = document.createElement('select');
-            input.innerHTML = '<option value="">Selecione...</option>';
-            if (options) {
-                options.forEach(opt => {
-                    const option = document.createElement('option');
-                    option.value = opt.value || opt;
-                    option.textContent = opt.label || opt;
-                    input.appendChild(option);
-                });
-            }
-            break;
-        case 'textarea':
-            input = document.createElement('textarea');
-            input.rows = 4;
-            break;
-        case 'checkbox':
-            const checkboxGroup = document.createElement('div');
-            checkboxGroup.className = 'checkbox-group';
-            input = document.createElement('input');
-            input.type = 'checkbox';
-            const checkLabel = document.createElement('label');
-            checkLabel.textContent = label;
-            checkboxGroup.appendChild(input);
-            checkboxGroup.appendChild(checkLabel);
-            group.appendChild(checkboxGroup);
-            input.id = name;
-            input.name = name;
-            if (value) input.checked = value;
-            return group;
-        default:
-            input = document.createElement('input');
-            input.type = type;
-            break;
-    }
-    
-    input.id = name;
-    input.name = name;
-    if (value) input.value = value;
-    if (placeholder) input.placeholder = placeholder;
-    if (required) input.required = true;
-    
-    // Add formatting for specific fields
-    if (name === 'cpfCnpj') {
-        input.addEventListener('input', function(e) {
-            const value = e.target.value;
-            if (value.length <= 14) {
-                e.target.value = Utils.formatCPF(value);
+            const savedUser = this.getSavedUser();
+            if (savedUser && this.validateUser(savedUser)) {
+                this.currentUser = savedUser;
+                this.showMainApp();
             } else {
-                e.target.value = Utils.formatCNPJ(value);
+                this.showLogin();
+            }
+        }, 2500);
+    }
+
+    // Event listeners
+    setupEventListeners() {
+        // Login form
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleLogin();
+        });
+
+        // Clique fora do modal
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                this.closeModal();
             }
         });
-    }
-    
-    if (name.includes('telefone')) {
-        input.addEventListener('input', function(e) {
-            e.target.value = Utils.formatPhone(e.target.value);
-        });
-    }
-    
-    if (name === 'cep') {
-        input.addEventListener('input', function(e) {
-            e.target.value = Utils.formatCEP(e.target.value);
-        });
-        input.addEventListener('blur', function(e) {
-            if (e.target.value.length === 9) {
-                fetchAddressByCEP(e.target.value);
+
+        // Fecha dropdown ao clicar fora
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.user-menu')) {
+                this.closeUserMenu();
             }
         });
+
+        // Atualiza data/hora
+        this.updateDateTime();
+        setInterval(() => this.updateDateTime(), 1000);
     }
-    
-    group.appendChild(input);
-    return group;
-}
 
-function createActionButtons(formType) {
-    const container = document.createElement('div');
-    container.className = 'action-buttons';
-    
-    // Save button
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'action-btn btn-save';
-    saveBtn.innerHTML = '<i class="fas fa-save"></i> SALVAR';
-    saveBtn.onclick = () => handleSave(formType);
-    
-    // Clear button
-    const clearBtn = document.createElement('button');
-    clearBtn.className = 'action-btn btn-clear';
-    clearBtn.innerHTML = '<i class="fas fa-trash"></i> LIMPAR';
-    clearBtn.onclick = () => handleClear();
-    
-    // Send email button
-    const sendBtn = document.createElement('button');
-    sendBtn.className = 'action-btn btn-send';
-    sendBtn.innerHTML = '<i class="fas fa-envelope"></i> ENVIAR EMAIL';
-    sendBtn.onclick = () => handleSendEmail(formType);
-    
-    container.appendChild(saveBtn);
-    container.appendChild(clearBtn);
-    container.appendChild(sendBtn);
-    
-    return container;
-}
+    // Autenticação
+    handleLogin() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
 
-function handleSave(formType) {
-    const form = document.querySelector('#content-area form');
-    if (!form) return;
-    
-    const formData = new FormData(form);
-    const data = {};
-    
-    for (let [key, value] of formData.entries()) {
-        data[key] = value;
+        const btn = document.querySelector('.login-btn');
+        const btnText = btn.querySelector('.btn-text');
+        const btnLoading = btn.querySelector('.btn-loading');
+
+        // Mostra loading
+        btnText.classList.add('hidden');
+        btnLoading.classList.remove('hidden');
+        btn.disabled = true;
+
+        setTimeout(() => {
+            const user = this.authenticateUser(username, password);
+            
+            if (user) {
+                this.currentUser = user;
+                this.saveUser(user);
+                this.showToast('Login realizado com sucesso!', 'success', `Bem-vindo, ${user.name}!`);
+                setTimeout(() => this.showMainApp(), 1000);
+            } else {
+                this.showToast('Credenciais inválidas', 'error', 'Verifique seu usuário e senha.');
+                btnText.classList.remove('hidden');
+                btnLoading.classList.add('hidden');
+                btn.disabled = false;
+            }
+        }, 1500);
     }
-    
-    // Add checkbox values
-    const checkboxes = form.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(cb => {
-        data[cb.name] = cb.checked;
-    });
-    
-    try {
-        saveForm(formType, data);
-        Utils.showToast('Formulário salvo com sucesso!');
-    } catch (error) {
-        Utils.showToast('Erro ao salvar formulário', 'error');
-    }
-}
 
-function handleClear() {
-    const form = document.querySelector('#content-area form');
-    if (form) {
-        form.reset();
-        Utils.showToast('Formulário limpo');
-    }
-}
+    authenticateUser(username, password) {
+        const users = {
+            'admin': {
+                password: 'admin123',
+                name: 'Administrador',
+                role: 'admin',
+                permissions: ['all']
+            },
+            'tecnico': {
+                password: 'tec123',
+                name: 'Técnico Especializado',
+                role: 'tecnico',
+                permissions: ['service', 'demonstracao', 'admin']
+            },
+            'vendas': {
+                password: 'vendas123',
+                name: 'Consultor de Vendas',
+                role: 'vendedor',
+                permissions: ['demonstracao', 'aplicacao', 'password', 'instalacao']
+            }
+        };
 
-async function handleSendEmail(formType) {
-    const form = document.querySelector('#content-area form');
-    if (!form) return;
-    
-    const formData = new FormData(form);
-    const data = {};
-    
-    for (let [key, value] of formData.entries()) {
-        data[key] = value;
-    }
-    
-    // Add checkbox values
-    const checkboxes = form.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(cb => {
-        data[cb.name] = cb.checked;
-    });
-    
-    // Validate required fields based on form type
-    let requiredFields = ['razaoSocial', 'modelo', 'serial', 'motivo'];
-    
-    const errors = Utils.validateForm(data, requiredFields);
-    if (errors.length > 0) {
-        Utils.showToast(errors[0], 'error');
-        return;
-    }
-    
-    try {
-        await sendFormEmail(data, formType);
-    } catch (error) {
-        Utils.showToast('Erro ao processar email: ' + error.message, 'error');
-    }
-}
-
-// Form service
-function saveForm(formType, data) {
-    const forms = Utils.getFromStorage('miniescopo_forms', []);
-    const newForm = {
-        id: Utils.generateId(),
-        type: formType,
-        data: data,
-        createdAt: new Date().toISOString(),
-        createdBy: AppState.currentUser?.username || 'unknown'
-    };
-    forms.push(newForm);
-    Utils.saveToStorage('miniescopo_forms', forms);
-    return newForm;
-}
-
-function getForms(formType = null) {
-    const forms = Utils.getFromStorage('miniescopo_forms', []);
-    return formType ? forms.filter(f => f.type === formType) : forms;
-}
-
-function deleteForm(formId) {
-    const forms = Utils.getFromStorage('miniescopo_forms', []);
-    const updatedForms = forms.filter(f => f.id !== formId);
-    Utils.saveToStorage('miniescopo_forms', updatedForms);
-}
-
-// CEP API integration
-async function fetchAddressByCEP(cep) {
-    try {
-        const cleanCEP = cep.replace(/\D/g, '');
-        const response = await fetch(`https://viacep.com.br/ws/${cleanCEP}/json/`);
-        const data = await response.json();
-        
-        if (!data.erro) {
-            document.getElementById('endereco').value = data.logradouro || '';
-            document.getElementById('bairro').value = data.bairro || '';
-            document.getElementById('cidade').value = data.localidade || '';
-            document.getElementById('estado').value = data.uf || '';
-            Utils.showToast('Endereço preenchido automaticamente!');
+        const user = users[username];
+        if (user && user.password === password) {
+            return {
+                username,
+                name: user.name,
+                role: user.role,
+                permissions: user.permissions
+            };
         }
-    } catch (error) {
-        console.error('Erro ao buscar CEP:', error);
+        return null;
     }
-}
 
-// Page renderers
-function renderMenu() {
-    const user = getCurrentUser();
-    
-    let menuItems = '';
-    
-    if (Utils.hasPermission('service')) {
-        menuItems += `
-            <div class="menu-card service-card" onclick="switchTab('SERVICE')">
-                <div class="menu-card-icon">
+    // Interface principal
+    showMainApp() {
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('login-container').classList.add('hidden');
+        document.getElementById('main-app').classList.remove('hidden');
+
+        this.updateUserInterface();
+        this.updateNotificationCount();
+        this.switchTab('dashboard');
+    }
+
+    updateUserInterface() {
+        if (!this.currentUser) return;
+
+        document.getElementById('user-name').textContent = this.currentUser.name;
+        document.getElementById('user-role').textContent = this.currentUser.role;
+
+        // Mostra tab admin se for admin
+        if (this.hasPermission('all')) {
+            document.getElementById('admin-tab').classList.remove('hidden');
+        }
+
+        // Mostra configurações se tiver permissão
+        if (this.hasPermission('all') || this.hasPermission('admin')) {
+            document.getElementById('settings-link').style.display = 'flex';
+        }
+
+        this.updateNavigation();
+    }
+
+    updateNavigation() {
+        const tabs = document.querySelectorAll('.nav-tab');
+        tabs.forEach(tab => {
+            const tabName = tab.dataset.tab;
+            if (tabName === 'dashboard' || this.hasPermission(tabName) || 
+                (tabName === 'admin' && this.hasPermission('all'))) {
+                tab.style.display = 'flex';
+            } else {
+                tab.style.display = 'none';
+            }
+        });
+    }
+
+    // Navegação entre tabs
+    switchTab(tabName) {
+        this.currentTab = tabName;
+
+        // Atualiza navegação ativa
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        const activeTab = document.querySelector(`[data-tab="${tabName}"]`);
+        if (activeTab) {
+            activeTab.classList.add('active');
+        }
+
+        // Carrega conteúdo da tab
+        this.loadTabContent(tabName);
+    }
+
+    loadTabContent(tabName) {
+        const contentArea = document.getElementById('content-area');
+        
+        switch (tabName) {
+            case 'dashboard':
+                contentArea.innerHTML = this.renderDashboard();
+                break;
+            case 'service':
+                contentArea.innerHTML = this.renderServiceForm();
+                this.setupFormHandlers('service');
+                break;
+            case 'demonstracao':
+                contentArea.innerHTML = this.renderDemoForm();
+                this.setupFormHandlers('demonstracao');
+                break;
+            case 'aplicacao':
+                contentArea.innerHTML = this.renderAppForm();
+                this.setupFormHandlers('aplicacao');
+                break;
+            case 'password':
+                contentArea.innerHTML = this.renderPasswordForm();
+                this.setupFormHandlers('password');
+                break;
+            case 'instalacao':
+                contentArea.innerHTML = this.renderInstallForm();
+                this.setupFormHandlers('instalacao');
+                break;
+            case 'admin':
+                if (this.hasPermission('all')) {
+                    contentArea.innerHTML = this.renderAdminPanel();
+                    this.setupAdminHandlers();
+                } else {
+                    contentArea.innerHTML = this.renderAccessDenied();
+                }
+                break;
+            default:
+                contentArea.innerHTML = this.renderNotFound();
+        }
+    }
+
+    // Renderização de conteúdo
+    renderDashboard() {
+        const stats = this.getSystemStats();
+        return `
+            <div class="dashboard">
+                <div class="dashboard-header">
+                    <h1>Dashboard</h1>
+                    <p>Visão geral do sistema MiniEscopo</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-tools"></i>
+                        </div>
+                        <div class="stat-number">${stats.service}</div>
+                        <div class="stat-label">Serviços</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-desktop"></i>
+                        </div>
+                        <div class="stat-number">${stats.demonstracao}</div>
+                        <div class="stat-label">Demonstrações</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="stat-number">${stats.aplicacao}</div>
+                        <div class="stat-label">Aplicações</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-key"></i>
+                        </div>
+                        <div class="stat-number">${stats.password}</div>
+                        <div class="stat-label">Licenças</div>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <h2>Ações Rápidas</h2>
+                    <div class="action-grid">
+                        ${this.hasPermission('service') || this.hasPermission('all') ? `
+                        <div class="action-card" onclick="app.switchTab('service')">
+                            <i class="fas fa-tools"></i>
+                            <h3>Novo Serviço</h3>
+                            <p>Criar solicitação de serviço técnico</p>
+                        </div>` : ''}
+                        
+                        ${this.hasPermission('demonstracao') || this.hasPermission('all') ? `
+                        <div class="action-card" onclick="app.switchTab('demonstracao')">
+                            <i class="fas fa-desktop"></i>
+                            <h3>Nova Demonstração</h3>
+                            <p>Agendar demonstração de produto</p>
+                        </div>` : ''}
+                        
+                        ${this.hasPermission('aplicacao') || this.hasPermission('all') ? `
+                        <div class="action-card" onclick="app.switchTab('aplicacao')">
+                            <i class="fas fa-file-alt"></i>
+                            <h3>Nova Aplicação</h3>
+                            <p>Solicitar configuração de software</p>
+                        </div>` : ''}
+                        
+                        ${this.hasPermission('password') || this.hasPermission('all') ? `
+                        <div class="action-card" onclick="app.switchTab('password')">
+                            <i class="fas fa-key"></i>
+                            <h3>Nova Licença</h3>
+                            <p>Solicitar password ou licença</p>
+                        </div>` : ''}
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <h2>Atividade Recente</h2>
+                    <div class="activity-list">
+                        ${this.renderRecentActivity()}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderServiceForm() {
+        return `
+            <div class="form-container">
+                <div class="form-header">
                     <i class="fas fa-tools"></i>
+                    <h2>Solicitação de Serviço Técnico</h2>
                 </div>
-                <h3>Serviço Técnico</h3>
-                <p>Solicitações de manutenção, reparo e suporte técnico especializado.</p>
+                <div class="form-content">
+                    <form id="service-form">
+                        ${this.renderClientSection()}
+                        ${this.renderEquipmentSection()}
+                        ${this.renderServiceSpecificSection()}
+                    </form>
+                    ${this.renderFormActions('service')}
+                </div>
             </div>
         `;
     }
-    
-    if (Utils.hasPermission('demonstracao')) {
-        menuItems += `
-            <div class="menu-card demo-card" onclick="switchTab('DEMONSTRACAO')">
-                <div class="menu-card-icon">
+
+    renderDemoForm() {
+        return `
+            <div class="form-container">
+                <div class="form-header">
                     <i class="fas fa-desktop"></i>
+                    <h2>Solicitação de Demonstração</h2>
                 </div>
-                <h3>Demonstração</h3>
-                <p>Agendamento de demonstrações de produtos e apresentações técnicas.</p>
+                <div class="form-content">
+                    <form id="demonstracao-form">
+                        ${this.renderClientSection()}
+                        ${this.renderEquipmentSection()}
+                        ${this.renderDemoSpecificSection()}
+                    </form>
+                    ${this.renderFormActions('demonstracao')}
+                </div>
             </div>
         `;
     }
-    
-    if (Utils.hasPermission('aplicacao')) {
-        menuItems += `
-            <div class="menu-card app-card" onclick="switchTab('APLICACAO')">
-                <div class="menu-card-icon">
+
+    renderAppForm() {
+        return `
+            <div class="form-container">
+                <div class="form-header">
                     <i class="fas fa-file-alt"></i>
+                    <h2>Solicitação de Aplicação</h2>
                 </div>
-                <h3>Aplicação</h3>
-                <p>Solicitações de configuração e aplicação de software.</p>
+                <div class="form-content">
+                    <form id="aplicacao-form">
+                        ${this.renderClientSection()}
+                        ${this.renderEquipmentSection()}
+                        ${this.renderAppSpecificSection()}
+                    </form>
+                    ${this.renderFormActions('aplicacao')}
+                </div>
             </div>
         `;
     }
-    
-    if (Utils.hasPermission('password')) {
-        menuItems += `
-            <div class="menu-card password-card" onclick="switchTab('PASSWORD')">
-                <div class="menu-card-icon">
+
+    renderPasswordForm() {
+        return `
+            <div class="form-container">
+                <div class="form-header">
                     <i class="fas fa-key"></i>
+                    <h2>Solicitação de Password/Licença</h2>
                 </div>
-                <h3>Senha/Licença</h3>
-                <p>Solicitações de passwords, licenças e ativação de funcionalidades.</p>
+                <div class="form-content">
+                    <form id="password-form">
+                        ${this.renderClientSection()}
+                        ${this.renderEquipmentSection()}
+                        ${this.renderPasswordSpecificSection()}
+                    </form>
+                    ${this.renderFormActions('password')}
+                </div>
             </div>
         `;
     }
-    
-    menuItems += `
-        <div class="menu-card install-card" onclick="switchTab('INSTALACAO_DEMO')">
-            <div class="menu-card-icon">
-                <i class="fas fa-download"></i>
-            </div>
-            <h3>Instalação Demo</h3>
-            <p>Instalação de versões demonstrativas para avaliação.</p>
-        </div>
-    `;
-    
-    if (isAdmin()) {
-        menuItems += `
-            <div class="menu-card data-card" onclick="switchTab('RAWDATA')">
-                <div class="menu-card-icon">
-                    <i class="fas fa-database"></i>
+
+    renderInstallForm() {
+        return `
+            <div class="form-container">
+                <div class="form-header">
+                    <i class="fas fa-download"></i>
+                    <h2>Solicitação de Instalação Demo</h2>
                 </div>
-                <h3>Dados do Sistema</h3>
-                <p>Visualização e gerenciamento de dados administrativos.</p>
+                <div class="form-content">
+                    <form id="instalacao-form">
+                        ${this.renderClientSection()}
+                        ${this.renderEquipmentSection()}
+                        ${this.renderInstallSpecificSection()}
+                    </form>
+                    ${this.renderFormActions('instalacao')}
+                </div>
             </div>
         `;
     }
-    
-    return `
-        <div class="welcome-section">
-            <h2>Bem-vindo, ${user ? user.name : 'Usuário'}!</h2>
-            <p>Selecione uma das opções abaixo para começar:</p>
-        </div>
-        <div class="menu-container">
-            ${menuItems}
-        </div>
-    `;
-}
 
-function renderServiceForm() {
-    const container = document.createElement('div');
-    container.className = 'form-container';
-    
-    const header = document.createElement('div');
-    header.className = 'form-header';
-    header.innerHTML = '<i class="fas fa-tools"></i><h2>SERVIÇO TÉCNICO</h2>';
-    
-    const content = document.createElement('div');
-    content.className = 'form-content';
-    
-    const form = document.createElement('form');
-    
-    // Client data section
-    const clientSection = document.createElement('div');
-    clientSection.className = 'form-section';
-    clientSection.innerHTML = '<div class="section-title"><i class="fas fa-user"></i> DADOS DO CLIENTE</div>';
-    
-    const clientRow1 = document.createElement('div');
-    clientRow1.className = 'form-row';
-    clientRow1.appendChild(createFormField('text', 'razaoSocial', 'Nome/Razão Social', true, null, '', 'Digite o nome ou razão social'));
-    clientRow1.appendChild(createFormField('text', 'cpfCnpj', 'CPF/CNPJ', true, null, '', 'Digite o CPF ou CNPJ'));
-    
-    const clientRow2 = document.createElement('div');
-    clientRow2.className = 'form-row';
-    clientRow2.appendChild(createFormField('tel', 'telefone1', 'Telefone 1', true, null, '', '(00) 00000-0000'));
-    clientRow2.appendChild(createFormField('tel', 'telefone2', 'Telefone 2', false, null, '', '(00) 00000-0000'));
-    
-    const clientRow3 = document.createElement('div');
-    clientRow3.className = 'form-row';
-    clientRow3.appendChild(createFormField('email', 'email', 'E-mail', false, null, '', 'email@exemplo.com'));
-    clientRow3.appendChild(createFormField('text', 'responsavel', 'Responsável', false, null, '', 'Nome do responsável'));
-    clientRow3.appendChild(createFormField('text', 'setorResponsavel', 'Setor Responsável', false, null, '', 'Setor/Departamento'));
-    
-    const addressRow = document.createElement('div');
-    addressRow.className = 'form-row';
-    addressRow.appendChild(createFormField('text', 'cep', 'CEP', false, null, '', '00000-000'));
-    addressRow.appendChild(createFormField('text', 'endereco', 'Endereço', false, null, '', 'Rua, Avenida, etc.'));
-    addressRow.appendChild(createFormField('text', 'numero', 'Número', false, null, '', 'Nº'));
-    
-    const addressRow2 = document.createElement('div');
-    addressRow2.className = 'form-row';
-    addressRow2.appendChild(createFormField('text', 'bairro', 'Bairro', false, null, '', 'Nome do bairro'));
-    addressRow2.appendChild(createFormField('text', 'cidade', 'Cidade', false, null, '', 'Nome da cidade'));
-    addressRow2.appendChild(createFormField('text', 'estado', 'Estado', false, null, '', 'UF'));
-    
-    clientSection.appendChild(clientRow1);
-    clientSection.appendChild(clientRow2);
-    clientSection.appendChild(clientRow3);
-    clientSection.appendChild(addressRow);
-    clientSection.appendChild(addressRow2);
-    
-    // Equipment section
-    const equipSection = document.createElement('div');
-    equipSection.className = 'form-section';
-    equipSection.innerHTML = '<div class="section-title"><i class="fas fa-cog"></i> DADOS DO EQUIPAMENTO</div>';
-    
-    const equipRow1 = document.createElement('div');
-    equipRow1.className = 'form-row';
-    
-    const modeloOptions = [
-        'LABGEO PT1000',
-        'LABGEO PT3000',
-        'LABGEO PT1000 VET',
-        'LABGEO PT3000 VET',
-        'OUTROS'
-    ];
-    
-    equipRow1.appendChild(createFormField('select', 'modelo', 'Modelo', true, modeloOptions));
-    equipRow1.appendChild(createFormField('text', 'serial', 'Serial', true, null, '', 'Número de série'));
-    
-    const motivoRow = document.createElement('div');
-    motivoRow.className = 'form-row';
-    const motivoOptions = [
-        'Instalação Inicial',
-        'Manutenção Preventiva',
-        'Manutenção Corretiva',
-        'Atualização de Software',
-        'Troca de Peças',
-        'Calibração',
-        'Outros'
-    ];
-    motivoRow.appendChild(createFormField('select', 'motivo', 'Motivo da Solicitação', true, motivoOptions));
-    
-    // Additional fields for service
-    const serviceRow = document.createElement('div');
-    serviceRow.className = 'form-row';
-    const usoOptions = ['Humano', 'Veterinário'];
-    serviceRow.appendChild(createFormField('select', 'usoHumanoVeterinario', 'Uso Humano/Veterinário', false, usoOptions));
-    serviceRow.appendChild(createFormField('text', 'modeloImpressora', 'Modelo da Impressora', false, null, '', 'Modelo da impressora'));
-    serviceRow.appendChild(createFormField('text', 'modeloNobreak', 'Modelo do Nobreak', false, null, '', 'Modelo do nobreak'));
-    
-    const descRow = document.createElement('div');
-    descRow.className = 'form-row';
-    descRow.appendChild(createFormField('textarea', 'descricaoTestes', 'Descrição/Observações', false, null, '', 'Descreva o problema ou observações adicionais'));
-    
-    equipSection.appendChild(equipRow1);
-    equipSection.appendChild(motivoRow);
-    equipSection.appendChild(serviceRow);
-    equipSection.appendChild(descRow);
-    
-    form.appendChild(clientSection);
-    form.appendChild(equipSection);
-    
-    content.appendChild(form);
-    content.appendChild(createActionButtons('service'));
-    
-    container.appendChild(header);
-    container.appendChild(content);
-    
-    return container;
-}
-
-function renderDemonstracaoForm() {
-    const container = document.createElement('div');
-    container.className = 'form-container';
-    
-    const header = document.createElement('div');
-    header.className = 'form-header';
-    header.innerHTML = '<i class="fas fa-desktop"></i><h2>DEMONSTRAÇÃO</h2>';
-    
-    const content = document.createElement('div');
-    content.className = 'form-content';
-    
-    const form = document.createElement('form');
-    
-    // Client data section
-    const clientSection = document.createElement('div');
-    clientSection.className = 'form-section';
-    clientSection.innerHTML = '<div class="section-title"><i class="fas fa-user"></i> DADOS DO CLIENTE</div>';
-    
-    const clientRow1 = document.createElement('div');
-    clientRow1.className = 'form-row';
-    clientRow1.appendChild(createFormField('text', 'razaoSocial', 'Nome/Razão Social', true, null, '', 'Digite o nome ou razão social'));
-    clientRow1.appendChild(createFormField('text', 'cpfCnpj', 'CPF/CNPJ', true, null, '', 'Digite o CPF ou CNPJ'));
-    
-    const clientRow2 = document.createElement('div');
-    clientRow2.className = 'form-row';
-    clientRow2.appendChild(createFormField('tel', 'telefone1', 'Telefone 1', true, null, '', '(00) 00000-0000'));
-    clientRow2.appendChild(createFormField('tel', 'telefone2', 'Telefone 2', false, null, '', '(00) 00000-0000'));
-    
-    const clientRow3 = document.createElement('div');
-    clientRow3.className = 'form-row';
-    clientRow3.appendChild(createFormField('email', 'email', 'E-mail', false, null, '', 'email@exemplo.com'));
-    clientRow3.appendChild(createFormField('text', 'responsavel', 'Responsável', false, null, '', 'Nome do responsável'));
-    clientRow3.appendChild(createFormField('text', 'setorResponsavel', 'Setor Responsável', false, null, '', 'Setor/Departamento'));
-    
-    const addressRow = document.createElement('div');
-    addressRow.className = 'form-row';
-    addressRow.appendChild(createFormField('text', 'cep', 'CEP', false, null, '', '00000-000'));
-    addressRow.appendChild(createFormField('text', 'endereco', 'Endereço', false, null, '', 'Rua, Avenida, etc.'));
-    addressRow.appendChild(createFormField('text', 'numero', 'Número', false, null, '', 'Nº'));
-    
-    const addressRow2 = document.createElement('div');
-    addressRow2.className = 'form-row';
-    addressRow2.appendChild(createFormField('text', 'bairro', 'Bairro', false, null, '', 'Nome do bairro'));
-    addressRow2.appendChild(createFormField('text', 'cidade', 'Cidade', false, null, '', 'Nome da cidade'));
-    addressRow2.appendChild(createFormField('text', 'estado', 'Estado', false, null, '', 'UF'));
-    
-    clientSection.appendChild(clientRow1);
-    clientSection.appendChild(clientRow2);
-    clientSection.appendChild(clientRow3);
-    clientSection.appendChild(addressRow);
-    clientSection.appendChild(addressRow2);
-    
-    // Equipment section
-    const equipSection = document.createElement('div');
-    equipSection.className = 'form-section';
-    equipSection.innerHTML = '<div class="section-title"><i class="fas fa-cog"></i> DADOS DO EQUIPAMENTO</div>';
-    
-    const equipRow1 = document.createElement('div');
-    equipRow1.className = 'form-row';
-    
-    const modeloOptions = [
-        'LABGEO PT1000',
-        'LABGEO PT3000',
-        'LABGEO PT1000 VET',
-        'LABGEO PT3000 VET',
-        'OUTROS'
-    ];
-    
-    equipRow1.appendChild(createFormField('select', 'modelo', 'Modelo', true, modeloOptions));
-    equipRow1.appendChild(createFormField('text', 'serial', 'Serial', true, null, '', 'Número de série'));
-    
-    const motivoRow = document.createElement('div');
-    motivoRow.className = 'form-row';
-    const motivoOptions = [
-        'Apresentação de Produto',
-        'Teste de Funcionalidades',
-        'Avaliação Técnica',
-        'Comparação com Concorrência',
-        'Treinamento',
-        'Outros'
-    ];
-    motivoRow.appendChild(createFormField('select', 'motivo', 'Motivo da Demonstração', true, motivoOptions));
-    
-    // Demo specific fields
-    const demoSection = document.createElement('div');
-    demoSection.className = 'form-section';
-    demoSection.innerHTML = '<div class="section-title"><i class="fas fa-calendar"></i> CRONOGRAMA DA DEMONSTRAÇÃO</div>';
-    
-    const demoRow1 = document.createElement('div');
-    demoRow1.className = 'form-row';
-    demoRow1.appendChild(createFormField('date', 'cronogramaInicio', 'Data de Início', true));
-    demoRow1.appendChild(createFormField('date', 'cronogramaFim', 'Data de Fim', true));
-    
-    const demoRow2 = document.createElement('div');
-    demoRow2.className = 'form-row';
-    demoRow2.appendChild(createFormField('textarea', 'justificativaDemo', 'Justificativa da Demonstração', false, null, '', 'Descreva o objetivo e justificativa da demonstração'));
-    
-    const demoRow3 = document.createElement('div');
-    demoRow3.className = 'form-row';
-    demoRow3.appendChild(createFormField('textarea', 'descricaoTestes', 'Descrição dos Testes', false, null, '', 'Descreva os testes que serão realizados'));
-    
-    demoSection.appendChild(demoRow1);
-    demoSection.appendChild(demoRow2);
-    demoSection.appendChild(demoRow3);
-    
-    form.appendChild(clientSection);
-    form.appendChild(equipSection);
-    form.appendChild(demoSection);
-    
-    content.appendChild(form);
-    content.appendChild(createActionButtons('demonstracao'));
-    
-    container.appendChild(header);
-    container.appendChild(content);
-    
-    return container;
-}
-
-function renderAplicacaoForm() {
-    const container = document.createElement('div');
-    container.className = 'form-container';
-    
-    const header = document.createElement('div');
-    header.className = 'form-header';
-    header.innerHTML = '<i class="fas fa-file-alt"></i><h2>APLICAÇÃO</h2>';
-    
-    const content = document.createElement('div');
-    content.className = 'form-content';
-    
-    const form = document.createElement('form');
-    
-    // Client data section
-    const clientSection = document.createElement('div');
-    clientSection.className = 'form-section';
-    clientSection.innerHTML = '<div class="section-title"><i class="fas fa-user"></i> DADOS DO CLIENTE</div>';
-    
-    const clientRow1 = document.createElement('div');
-    clientRow1.className = 'form-row';
-    clientRow1.appendChild(createFormField('text', 'razaoSocial', 'Nome/Razão Social', true, null, '', 'Digite o nome ou razão social'));
-    clientRow1.appendChild(createFormField('text', 'cpfCnpj', 'CPF/CNPJ', true, null, '', 'Digite o CPF ou CNPJ'));
-    
-    const clientRow2 = document.createElement('div');
-    clientRow2.className = 'form-row';
-    clientRow2.appendChild(createFormField('tel', 'telefone1', 'Telefone 1', true, null, '', '(00) 00000-0000'));
-    clientRow2.appendChild(createFormField('tel', 'telefone2', 'Telefone 2', false, null, '', '(00) 00000-0000'));
-    
-    const clientRow3 = document.createElement('div');
-    clientRow3.className = 'form-row';
-    clientRow3.appendChild(createFormField('email', 'email', 'E-mail', false, null, '', 'email@exemplo.com'));
-    clientRow3.appendChild(createFormField('text', 'responsavel', 'Responsável', false, null, '', 'Nome do responsável'));
-    clientRow3.appendChild(createFormField('text', 'setorResponsavel', 'Setor Responsável', false, null, '', 'Setor/Departamento'));
-    
-    const addressRow = document.createElement('div');
-    addressRow.className = 'form-row';
-    addressRow.appendChild(createFormField('text', 'cep', 'CEP', false, null, '', '00000-000'));
-    addressRow.appendChild(createFormField('text', 'endereco', 'Endereço', false, null, '', 'Rua, Avenida, etc.'));
-    addressRow.appendChild(createFormField('text', 'numero', 'Número', false, null, '', 'Nº'));
-    
-    const addressRow2 = document.createElement('div');
-    addressRow2.className = 'form-row';
-    addressRow2.appendChild(createFormField('text', 'bairro', 'Bairro', false, null, '', 'Nome do bairro'));
-    addressRow2.appendChild(createFormField('text', 'cidade', 'Cidade', false, null, '', 'Nome da cidade'));
-    addressRow2.appendChild(createFormField('text', 'estado', 'Estado', false, null, '', 'UF'));
-    
-    clientSection.appendChild(clientRow1);
-    clientSection.appendChild(clientRow2);
-    clientSection.appendChild(clientRow3);
-    clientSection.appendChild(addressRow);
-    clientSection.appendChild(addressRow2);
-    
-    // Equipment section
-    const equipSection = document.createElement('div');
-    equipSection.className = 'form-section';
-    equipSection.innerHTML = '<div class="section-title"><i class="fas fa-cog"></i> DADOS DO EQUIPAMENTO</div>';
-    
-    const equipRow1 = document.createElement('div');
-    equipRow1.className = 'form-row';
-    
-    const modeloOptions = [
-        'LABGEO PT1000',
-        'LABGEO PT3000',
-        'LABGEO PT1000 VET',
-        'LABGEO PT3000 VET',
-        'OUTROS'
-    ];
-    
-    equipRow1.appendChild(createFormField('select', 'modelo', 'Modelo', true, modeloOptions));
-    equipRow1.appendChild(createFormField('text', 'serial', 'Serial', true, null, '', 'Número de série'));
-    
-    const motivoRow = document.createElement('div');
-    motivoRow.className = 'form-row';
-    const motivoOptions = [
-        'Configuração Inicial',
-        'Atualização de Software',
-        'Instalação de Módulos',
-        'Configuração de Parâmetros',
-        'Integração com Sistema',
-        'Outros'
-    ];
-    motivoRow.appendChild(createFormField('select', 'motivo', 'Motivo da Aplicação', true, motivoOptions));
-    
-    // Application specific fields
-    const appSection = document.createElement('div');
-    appSection.className = 'form-section';
-    appSection.innerHTML = '<div class="section-title"><i class="fas fa-calendar-check"></i> DADOS DA APLICAÇÃO</div>';
-    
-    const appRow1 = document.createElement('div');
-    appRow1.className = 'form-row';
-    appRow1.appendChild(createFormField('date', 'dataAplicacao', 'Data da Aplicação', true));
-    appRow1.appendChild(createFormField('text', 'numeroBO', 'Número do BO', false, null, '', 'Número da ordem de serviço'));
-    
-    const appRow2 = document.createElement('div');
-    appRow2.className = 'form-row';
-    appRow2.appendChild(createFormField('textarea', 'descricaoTestes', 'Descrição da Aplicação', false, null, '', 'Descreva detalhadamente a aplicação a ser realizada'));
-    
-    appSection.appendChild(appRow1);
-    appSection.appendChild(appRow2);
-    
-    form.appendChild(clientSection);
-    form.appendChild(equipSection);
-    form.appendChild(appSection);
-    
-    content.appendChild(form);
-    content.appendChild(createActionButtons('aplicacao'));
-    
-    container.appendChild(header);
-    container.appendChild(content);
-    
-    return container;
-}
-
-function renderPasswordForm() {
-    const container = document.createElement('div');
-    container.className = 'form-container';
-    
-    const header = document.createElement('div');
-    header.className = 'form-header';
-    header.innerHTML = '<i class="fas fa-key"></i><h2>SENHA/LICENÇA</h2>';
-    
-    const content = document.createElement('div');
-    content.className = 'form-content';
-    
-    const form = document.createElement('form');
-    
-    // Client data section
-    const clientSection = document.createElement('div');
-    clientSection.className = 'form-section';
-    clientSection.innerHTML = '<div class="section-title"><i class="fas fa-user"></i> DADOS DO CLIENTE</div>';
-    
-    const clientRow1 = document.createElement('div');
-    clientRow1.className = 'form-row';
-    clientRow1.appendChild(createFormField('text', 'razaoSocial', 'Nome/Razão Social', true, null, '', 'Digite o nome ou razão social'));
-    clientRow1.appendChild(createFormField('text', 'cpfCnpj', 'CPF/CNPJ', true, null, '', 'Digite o CPF ou CNPJ'));
-    
-    const clientRow2 = document.createElement('div');
-    clientRow2.className = 'form-row';
-    clientRow2.appendChild(createFormField('tel', 'telefone1', 'Telefone 1', true, null, '', '(00) 00000-0000'));
-    clientRow2.appendChild(createFormField('tel', 'telefone2', 'Telefone 2', false, null, '', '(00) 00000-0000'));
-    
-    const clientRow3 = document.createElement('div');
-    clientRow3.className = 'form-row';
-    clientRow3.appendChild(createFormField('email', 'email', 'E-mail', false, null, '', 'email@exemplo.com'));
-    clientRow3.appendChild(createFormField('text', 'responsavel', 'Responsável', false, null, '', 'Nome do responsável'));
-    clientRow3.appendChild(createFormField('text', 'setorResponsavel', 'Setor Responsável', false, null, '', 'Setor/Departamento'));
-    
-    const addressRow = document.createElement('div');
-    addressRow.className = 'form-row';
-    addressRow.appendChild(createFormField('text', 'cep', 'CEP', false, null, '', '00000-000'));
-    addressRow.appendChild(createFormField('text', 'endereco', 'Endereço', false, null, '', 'Rua, Avenida, etc.'));
-    addressRow.appendChild(createFormField('text', 'numero', 'Número', false, null, '', 'Nº'));
-    
-    const addressRow2 = document.createElement('div');
-    addressRow2.className = 'form-row';
-    addressRow2.appendChild(createFormField('text', 'bairro', 'Bairro', false, null, '', 'Nome do bairro'));
-    addressRow2.appendChild(createFormField('text', 'cidade', 'Cidade', false, null, '', 'Nome da cidade'));
-    addressRow2.appendChild(createFormField('text', 'estado', 'Estado', false, null, '', 'UF'));
-    
-    clientSection.appendChild(clientRow1);
-    clientSection.appendChild(clientRow2);
-    clientSection.appendChild(clientRow3);
-    clientSection.appendChild(addressRow);
-    clientSection.appendChild(addressRow2);
-    
-    // Equipment section
-    const equipSection = document.createElement('div');
-    equipSection.className = 'form-section';
-    equipSection.innerHTML = '<div class="section-title"><i class="fas fa-cog"></i> DADOS DO EQUIPAMENTO</div>';
-    
-    const equipRow1 = document.createElement('div');
-    equipRow1.className = 'form-row';
-    
-    const modeloOptions = [
-        'LABGEO PT1000',
-        'LABGEO PT3000',
-        'LABGEO PT1000 VET',
-        'LABGEO PT3000 VET',
-        'OUTROS'
-    ];
-    
-    equipRow1.appendChild(createFormField('select', 'modelo', 'Modelo', true, modeloOptions));
-    equipRow1.appendChild(createFormField('text', 'serial', 'Serial', true, null, '', 'Número de série'));
-    
-    const motivoRow = document.createElement('div');
-    motivoRow.className = 'form-row';
-    const motivoOptions = [
-        'Solicitação de Password',
-        'Renovação de Licença',
-        'Ativação de Funcionalidade',
-        'Reset de Sistema',
-        'Desbloqueio de Equipamento',
-        'Outros'
-    ];
-    motivoRow.appendChild(createFormField('select', 'motivo', 'Motivo da Solicitação', true, motivoOptions));
-    
-    // Password specific fields
-    const passSection = document.createElement('div');
-    passSection.className = 'form-section';
-    passSection.innerHTML = '<div class="section-title"><i class="fas fa-shield-alt"></i> DADOS DA LICENÇA</div>';
-    
-    const passRow1 = document.createElement('div');
-    passRow1.className = 'form-row';
-    passRow1.appendChild(createFormField('date', 'previsaoFaturamento', 'Previsão de Faturamento', false));
-    passRow1.appendChild(createFormField('text', 'numeroBO', 'Número do BO', false, null, '', 'Número da ordem de serviço'));
-    
-    const passRow2 = document.createElement('div');
-    passRow2.className = 'form-row';
-    passRow2.appendChild(createFormField('textarea', 'descricaoTestes', 'Descrição/Justificativa', false, null, '', 'Descreva a necessidade da senha/licença'));
-    
-    passSection.appendChild(passRow1);
-    passSection.appendChild(passRow2);
-    
-    form.appendChild(clientSection);
-    form.appendChild(equipSection);
-    form.appendChild(passSection);
-    
-    content.appendChild(form);
-    content.appendChild(createActionButtons('password'));
-    
-    container.appendChild(header);
-    container.appendChild(content);
-    
-    return container;
-}
-
-function renderInstalacaoForm() {
-    const container = document.createElement('div');
-    container.className = 'form-container';
-    
-    const header = document.createElement('div');
-    header.className = 'form-header';
-    header.innerHTML = '<i class="fas fa-download"></i><h2>INSTALAÇÃO DEMO</h2>';
-    
-    const content = document.createElement('div');
-    content.className = 'form-content';
-    
-    const form = document.createElement('form');
-    
-    // Client data section
-    const clientSection = document.createElement('div');
-    clientSection.className = 'form-section';
-    clientSection.innerHTML = '<div class="section-title"><i class="fas fa-user"></i> DADOS DO CLIENTE</div>';
-    
-    const clientRow1 = document.createElement('div');
-    clientRow1.className = 'form-row';
-    clientRow1.appendChild(createFormField('text', 'razaoSocial', 'Nome/Razão Social', true, null, '', 'Digite o nome ou razão social'));
-    clientRow1.appendChild(createFormField('text', 'cpfCnpj', 'CPF/CNPJ', true, null, '', 'Digite o CPF ou CNPJ'));
-    
-    const clientRow2 = document.createElement('div');
-    clientRow2.className = 'form-row';
-    clientRow2.appendChild(createFormField('tel', 'telefone1', 'Telefone 1', true, null, '', '(00) 00000-0000'));
-    clientRow2.appendChild(createFormField('tel', 'telefone2', 'Telefone 2', false, null, '', '(00) 00000-0000'));
-    
-    const clientRow3 = document.createElement('div');
-    clientRow3.className = 'form-row';
-    clientRow3.appendChild(createFormField('email', 'email', 'E-mail', false, null, '', 'email@exemplo.com'));
-    clientRow3.appendChild(createFormField('text', 'responsavel', 'Responsável', false, null, '', 'Nome do responsável'));
-    clientRow3.appendChild(createFormField('text', 'setorResponsavel', 'Setor Responsável', false, null, '', 'Setor/Departamento'));
-    
-    const addressRow = document.createElement('div');
-    addressRow.className = 'form-row';
-    addressRow.appendChild(createFormField('text', 'cep', 'CEP', false, null, '', '00000-000'));
-    addressRow.appendChild(createFormField('text', 'endereco', 'Endereço', false, null, '', 'Rua, Avenida, etc.'));
-    addressRow.appendChild(createFormField('text', 'numero', 'Número', false, null, '', 'Nº'));
-    
-    const addressRow2 = document.createElement('div');
-    addressRow2.className = 'form-row';
-    addressRow2.appendChild(createFormField('text', 'bairro', 'Bairro', false, null, '', 'Nome do bairro'));
-    addressRow2.appendChild(createFormField('text', 'cidade', 'Cidade', false, null, '', 'Nome da cidade'));
-    addressRow2.appendChild(createFormField('text', 'estado', 'Estado', false, null, '', 'UF'));
-    
-    clientSection.appendChild(clientRow1);
-    clientSection.appendChild(clientRow2);
-    clientSection.appendChild(clientRow3);
-    clientSection.appendChild(addressRow);
-    clientSection.appendChild(addressRow2);
-    
-    // Equipment section
-    const equipSection = document.createElement('div');
-    equipSection.className = 'form-section';
-    equipSection.innerHTML = '<div class="section-title"><i class="fas fa-cog"></i> DADOS DO EQUIPAMENTO</div>';
-    
-    const equipRow1 = document.createElement('div');
-    equipRow1.className = 'form-row';
-    
-    const modeloOptions = [
-        'LABGEO PT1000',
-        'LABGEO PT3000',
-        'LABGEO PT1000 VET',
-        'LABGEO PT3000 VET',
-        'OUTROS'
-    ];
-    
-    equipRow1.appendChild(createFormField('select', 'modelo', 'Modelo', true, modeloOptions));
-    equipRow1.appendChild(createFormField('text', 'serial', 'Serial', true, null, '', 'Número de série'));
-    
-    const motivoRow = document.createElement('div');
-    motivoRow.className = 'form-row';
-    const motivoOptions = [
-        'Instalação para Teste',
-        'Avaliação de Produto',
-        'Período de Experimentação',
-        'Comparação Técnica',
-        'Treinamento',
-        'Outros'
-    ];
-    motivoRow.appendChild(createFormField('select', 'motivo', 'Motivo da Instalação', true, motivoOptions));
-    
-    // Installation specific fields
-    const installSection = document.createElement('div');
-    installSection.className = 'form-section';
-    installSection.innerHTML = '<div class="section-title"><i class="fas fa-calendar-alt"></i> CRONOGRAMA DE INSTALAÇÃO</div>';
-    
-    const installRow1 = document.createElement('div');
-    installRow1.className = 'form-row';
-    installRow1.appendChild(createFormField('date', 'dataInicial', 'Data Inicial', true));
-    installRow1.appendChild(createFormField('date', 'dataFinal', 'Data Final', true));
-    
-    const installRow2 = document.createElement('div');
-    installRow2.className = 'form-row';
-    installRow2.appendChild(createFormField('text', 'responsavelInstalacao', 'Responsável pela Instalação', false, null, '', 'Nome do técnico responsável'));
-    
-    const installRow3 = document.createElement('div');
-    installRow3.className = 'form-row';
-    installRow3.appendChild(createFormField('textarea', 'descricaoTestes', 'Observações da Instalação', false, null, '', 'Descreva observações sobre a instalação'));
-    
-    installSection.appendChild(installRow1);
-    installSection.appendChild(installRow2);
-    installSection.appendChild(installRow3);
-    
-    form.appendChild(clientSection);
-    form.appendChild(equipSection);
-    form.appendChild(installSection);
-    
-    content.appendChild(form);
-    content.appendChild(createActionButtons('instalacao'));
-    
-    container.appendChild(header);
-    container.appendChild(content);
-    
-    return container;
-}
-
-function renderRawData() {
-    if (!isAdmin()) {
-        return '<div class="error-message">Acesso negado. Apenas administradores podem visualizar esta página.</div>';
+    // Seções de formulário
+    renderClientSection() {
+        return `
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-user"></i>
+                    Dados do Cliente
+                </div>
+                <div class="form-grid">
+                    <div class="form-field required">
+                        <label>Nome/Razão Social</label>
+                        <input type="text" name="razaoSocial" required>
+                    </div>
+                    <div class="form-field required">
+                        <label>CPF/CNPJ</label>
+                        <input type="text" name="cpfCnpj" required>
+                    </div>
+                    <div class="form-field required">
+                        <label>Telefone Principal</label>
+                        <input type="tel" name="telefone1" required>
+                    </div>
+                    <div class="form-field">
+                        <label>Telefone Secundário</label>
+                        <input type="tel" name="telefone2">
+                    </div>
+                    <div class="form-field">
+                        <label>E-mail</label>
+                        <input type="email" name="email">
+                    </div>
+                    <div class="form-field">
+                        <label>Responsável</label>
+                        <input type="text" name="responsavel">
+                    </div>
+                </div>
+                
+                <div class="section-title">
+                    <i class="fas fa-map-marker-alt"></i>
+                    Endereço
+                </div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>CEP</label>
+                        <input type="text" name="cep" onblur="app.buscarCEP(this.value)">
+                    </div>
+                    <div class="form-field">
+                        <label>Endereço</label>
+                        <input type="text" name="endereco">
+                    </div>
+                    <div class="form-field">
+                        <label>Número</label>
+                        <input type="text" name="numero">
+                    </div>
+                    <div class="form-field">
+                        <label>Bairro</label>
+                        <input type="text" name="bairro">
+                    </div>
+                    <div class="form-field">
+                        <label>Cidade</label>
+                        <input type="text" name="cidade">
+                    </div>
+                    <div class="form-field">
+                        <label>Estado</label>
+                        <select name="estado">
+                            <option value="">Selecione</option>
+                            <option value="AC">Acre</option>
+                            <option value="AL">Alagoas</option>
+                            <option value="AP">Amapá</option>
+                            <option value="AM">Amazonas</option>
+                            <option value="BA">Bahia</option>
+                            <option value="CE">Ceará</option>
+                            <option value="DF">Distrito Federal</option>
+                            <option value="ES">Espírito Santo</option>
+                            <option value="GO">Goiás</option>
+                            <option value="MA">Maranhão</option>
+                            <option value="MT">Mato Grosso</option>
+                            <option value="MS">Mato Grosso do Sul</option>
+                            <option value="MG">Minas Gerais</option>
+                            <option value="PA">Pará</option>
+                            <option value="PB">Paraíba</option>
+                            <option value="PR">Paraná</option>
+                            <option value="PE">Pernambuco</option>
+                            <option value="PI">Piauí</option>
+                            <option value="RJ">Rio de Janeiro</option>
+                            <option value="RN">Rio Grande do Norte</option>
+                            <option value="RS">Rio Grande do Sul</option>
+                            <option value="RO">Rondônia</option>
+                            <option value="RR">Roraima</option>
+                            <option value="SC">Santa Catarina</option>
+                            <option value="SP">São Paulo</option>
+                            <option value="SE">Sergipe</option>
+                            <option value="TO">Tocantins</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        `;
     }
-    
-    const forms = getForms();
-    
-    let tableContent = '';
-    forms.forEach(form => {
-        tableContent += `
+
+    renderEquipmentSection() {
+        return `
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-cog"></i>
+                    Dados do Equipamento
+                </div>
+                <div class="form-grid">
+                    <div class="form-field required">
+                        <label>Modelo</label>
+                        <select name="modelo" required>
+                            <option value="">Selecione o modelo</option>
+                            <option value="LABGEO PT1000">LABGEO PT1000</option>
+                            <option value="LABGEO PT3000">LABGEO PT3000</option>
+                            <option value="LABGEO PT1000 VET">LABGEO PT1000 VET</option>
+                            <option value="LABGEO PT3000 VET">LABGEO PT3000 VET</option>
+                            <option value="LABGEO EASY">LABGEO EASY</option>
+                            <option value="LABGEO MICRO">LABGEO MICRO</option>
+                            <option value="OUTROS">OUTROS</option>
+                        </select>
+                    </div>
+                    <div class="form-field required">
+                        <label>Número de Série</label>
+                        <input type="text" name="serial" required>
+                    </div>
+                    <div class="form-field required">
+                        <label>Motivo da Solicitação</label>
+                        <select name="motivo" required>
+                            <option value="">Selecione o motivo</option>
+                            <option value="Instalação Inicial">Instalação Inicial</option>
+                            <option value="Manutenção Preventiva">Manutenção Preventiva</option>
+                            <option value="Manutenção Corretiva">Manutenção Corretiva</option>
+                            <option value="Atualização de Software">Atualização de Software</option>
+                            <option value="Troca de Peças">Troca de Peças</option>
+                            <option value="Calibração">Calibração</option>
+                            <option value="Treinamento">Treinamento</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="form-field" style="grid-column: 1 / -1;">
+                        <label>Descrição Detalhada</label>
+                        <textarea name="descricao" rows="4" placeholder="Descreva detalhadamente o problema ou necessidade..."></textarea>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderServiceSpecificSection() {
+        return `
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-tools"></i>
+                    Informações Específicas do Serviço
+                </div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>Uso do Equipamento</label>
+                        <select name="usoEquipamento">
+                            <option value="">Selecione</option>
+                            <option value="Humano">Uso Humano</option>
+                            <option value="Veterinário">Uso Veterinário</option>
+                            <option value="Ambos">Ambos</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Modelo da Impressora</label>
+                        <input type="text" name="modeloImpressora" placeholder="Ex: HP LaserJet Pro">
+                    </div>
+                    <div class="form-field">
+                        <label>Modelo do Nobreak</label>
+                        <input type="text" name="modeloNobreak" placeholder="Ex: APC Back-UPS">
+                    </div>
+                    <div class="form-field">
+                        <label>Data Preferencial</label>
+                        <input type="date" name="dataPreferencial">
+                    </div>
+                </div>
+                <div class="checkbox-field">
+                    <input type="checkbox" name="urgente" id="urgente">
+                    <label for="urgente">Solicitação Urgente</label>
+                </div>
+            </div>
+        `;
+    }
+
+    renderDemoSpecificSection() {
+        return `
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-desktop"></i>
+                    Informações da Demonstração
+                </div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>Data de Início</label>
+                        <input type="date" name="dataInicio">
+                    </div>
+                    <div class="form-field">
+                        <label>Data de Término</label>
+                        <input type="date" name="dataFim">
+                    </div>
+                    <div class="form-field">
+                        <label>Horário Preferencial</label>
+                        <select name="horarioPreferencial">
+                            <option value="">Selecione</option>
+                            <option value="Manhã">Manhã (08:00 - 12:00)</option>
+                            <option value="Tarde">Tarde (13:00 - 17:00)</option>
+                            <option value="Integral">Período Integral</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Número de Participantes</label>
+                        <input type="number" name="numeroParticipantes" min="1" max="20">
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Justificativa da Demonstração</label>
+                    <textarea name="justificativa" rows="4" placeholder="Explique o motivo da demonstração e expectativas..."></textarea>
+                </div>
+            </div>
+        `;
+    }
+
+    renderAppSpecificSection() {
+        return `
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-file-alt"></i>
+                    Informações da Aplicação
+                </div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>Data da Aplicação</label>
+                        <input type="date" name="dataAplicacao">
+                    </div>
+                    <div class="form-field">
+                        <label>Tipo de Aplicação</label>
+                        <select name="tipoAplicacao">
+                            <option value="">Selecione</option>
+                            <option value="Instalação">Instalação de Software</option>
+                            <option value="Configuração">Configuração de Sistema</option>
+                            <option value="Atualização">Atualização de Versão</option>
+                            <option value="Customização">Customização Específica</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Sistema Operacional</label>
+                        <select name="sistemaOperacional">
+                            <option value="">Selecione</option>
+                            <option value="Windows 10">Windows 10</option>
+                            <option value="Windows 11">Windows 11</option>
+                            <option value="Windows Server">Windows Server</option>
+                            <option value="Linux">Linux</option>
+                            <option value="macOS">macOS</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Número do BO</label>
+                        <input type="text" name="numeroBO" placeholder="Ex: BO-2024-001">
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Requisitos Especiais</label>
+                    <textarea name="requisitosEspeciais" rows="3" placeholder="Descreva requisitos específicos para a aplicação..."></textarea>
+                </div>
+            </div>
+        `;
+    }
+
+    renderPasswordSpecificSection() {
+        return `
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-key"></i>
+                    Informações da Licença/Password
+                </div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>Tipo de Solicitação</label>
+                        <select name="tipoSolicitacao">
+                            <option value="">Selecione</option>
+                            <option value="Password Temporário">Password Temporário</option>
+                            <option value="Licença Permanente">Licença Permanente</option>
+                            <option value="Renovação">Renovação de Licença</option>
+                            <option value="Upgrade">Upgrade de Funcionalidades</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Previsão de Faturamento</label>
+                        <input type="date" name="previsaoFaturamento">
+                    </div>
+                    <div class="form-field">
+                        <label>Número do BO</label>
+                        <input type="text" name="numeroBO" placeholder="Ex: BO-2024-001">
+                    </div>
+                    <div class="form-field">
+                        <label>Valor Orçado (R$)</label>
+                        <input type="number" name="valorOrcado" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Funcionalidades Solicitadas</label>
+                    <textarea name="funcionalidades" rows="3" placeholder="Liste as funcionalidades específicas necessárias..."></textarea>
+                </div>
+                <div class="checkbox-field">
+                    <input type="checkbox" name="licencaPermanente" id="licencaPermanente">
+                    <label for="licencaPermanente">Licença Permanente (não temporária)</label>
+                </div>
+            </div>
+        `;
+    }
+
+    renderInstallSpecificSection() {
+        return `
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-download"></i>
+                    Informações da Instalação Demo
+                </div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>Data Inicial Desejada</label>
+                        <input type="date" name="dataInicial">
+                    </div>
+                    <div class="form-field">
+                        <label>Data Final da Demo</label>
+                        <input type="date" name="dataFinal">
+                    </div>
+                    <div class="form-field">
+                        <label>Responsável pela Instalação</label>
+                        <input type="text" name="responsavelInstalacao">
+                    </div>
+                    <div class="form-field">
+                        <label>Tempo de Demo (dias)</label>
+                        <select name="tempDemo">
+                            <option value="">Selecione</option>
+                            <option value="7">7 dias</option>
+                            <option value="15">15 dias</option>
+                            <option value="30">30 dias</option>
+                            <option value="60">60 dias</option>
+                            <option value="90">90 dias</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>Configurações Específicas</label>
+                    <textarea name="configuracoes" rows="3" placeholder="Descreva configurações específicas necessárias..."></textarea>
+                </div>
+                <div class="checkbox-field">
+                    <input type="checkbox" name="treinamentoIncluido" id="treinamentoIncluido">
+                    <label for="treinamentoIncluido">Incluir treinamento básico</label>
+                </div>
+            </div>
+        `;
+    }
+
+    renderFormActions(formType) {
+        return `
+            <div class="btn-actions">
+                <button type="button" class="btn btn-secondary" onclick="app.clearForm('${formType}')">
+                    <i class="fas fa-eraser"></i>
+                    Limpar Formulário
+                </button>
+                <button type="button" class="btn btn-success" onclick="app.saveForm('${formType}')">
+                    <i class="fas fa-save"></i>
+                    Salvar Dados
+                </button>
+                <button type="button" class="btn btn-primary" onclick="app.sendEmail('${formType}')">
+                    <i class="fas fa-envelope"></i>
+                    Enviar Email
+                </button>
+            </div>
+        `;
+    }
+
+    // Handlers de formulário
+    setupFormHandlers(formType) {
+        const form = document.getElementById(`${formType}-form`);
+        if (!form) return;
+
+        // Máscara para telefones
+        const phoneInputs = form.querySelectorAll('input[type="tel"]');
+        phoneInputs.forEach(input => {
+            input.addEventListener('input', (e) => {
+                this.formatPhone(e.target);
+            });
+        });
+
+        // Máscara para CPF/CNPJ
+        const cpfCnpjInput = form.querySelector('input[name="cpfCnpj"]');
+        if (cpfCnpjInput) {
+            cpfCnpjInput.addEventListener('input', (e) => {
+                this.formatCpfCnpj(e.target);
+            });
+        }
+
+        // Máscara para CEP
+        const cepInput = form.querySelector('input[name="cep"]');
+        if (cepInput) {
+            cepInput.addEventListener('input', (e) => {
+                this.formatCep(e.target);
+            });
+        }
+
+        // Validação em tempo real
+        const requiredFields = form.querySelectorAll('input[required], select[required]');
+        requiredFields.forEach(field => {
+            field.addEventListener('blur', () => {
+                this.validateField(field);
+            });
+        });
+    }
+
+    // Utilitários de formulário
+    formatPhone(input) {
+        let value = input.value.replace(/\D/g, '');
+        if (value.length <= 10) {
+            value = value.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+        } else {
+            value = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+        }
+        input.value = value;
+    }
+
+    formatCpfCnpj(input) {
+        let value = input.value.replace(/\D/g, '');
+        if (value.length <= 11) {
+            value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        } else {
+            value = value.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+        }
+        input.value = value;
+    }
+
+    formatCep(input) {
+        let value = input.value.replace(/\D/g, '');
+        value = value.replace(/(\d{5})(\d{3})/, '$1-$2');
+        input.value = value;
+    }
+
+    async buscarCEP(cep) {
+        const cleanCep = cep.replace(/\D/g, '');
+        if (cleanCep.length !== 8) return;
+
+        try {
+            const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+            const data = await response.json();
+            
+            if (!data.erro) {
+                const form = document.querySelector('form');
+                form.querySelector('input[name="endereco"]').value = data.logradouro || '';
+                form.querySelector('input[name="bairro"]').value = data.bairro || '';
+                form.querySelector('input[name="cidade"]').value = data.localidade || '';
+                form.querySelector('select[name="estado"]').value = data.uf || '';
+            }
+        } catch (error) {
+            console.error('Erro ao buscar CEP:', error);
+        }
+    }
+
+    validateField(field) {
+        const isValid = field.checkValidity();
+        field.style.borderColor = isValid ? '' : 'var(--error-color)';
+        return isValid;
+    }
+
+    // Ações de formulário
+    clearForm(formType) {
+        const form = document.getElementById(`${formType}-form`);
+        if (form) {
+            form.reset();
+            this.showToast('Formulário limpo', 'info', 'Todos os campos foram limpos.');
+        }
+    }
+
+    saveForm(formType) {
+        const form = document.getElementById(`${formType}-form`);
+        if (!form) return;
+
+        const formData = new FormData(form);
+        const data = {};
+
+        // Converte FormData para objeto
+        for (let [key, value] of formData.entries()) {
+            data[key] = value;
+        }
+
+        // Adiciona checkboxes
+        const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            data[cb.name] = cb.checked;
+        });
+
+        // Validação
+        const requiredFields = ['razaoSocial', 'cpfCnpj', 'telefone1', 'modelo', 'serial', 'motivo'];
+        const missingFields = requiredFields.filter(field => !data[field]);
+
+        if (missingFields.length > 0) {
+            this.showToast('Campos obrigatórios não preenchidos', 'error', 
+                `Por favor, preencha: ${missingFields.join(', ')}`);
+            return;
+        }
+
+        // Salva no localStorage
+        const formRecord = {
+            id: this.generateId(),
+            type: formType,
+            data: data,
+            createdAt: new Date().toISOString(),
+            createdBy: this.currentUser.username
+        };
+
+        this.forms.push(formRecord);
+        this.saveForms();
+
+        this.showToast('Formulário salvo com sucesso!', 'success', 
+            'Os dados foram salvos e podem ser recuperados posteriormente.');
+    }
+
+    async sendEmail(formType) {
+        const form = document.getElementById(`${formType}-form`);
+        if (!form) return;
+
+        const formData = new FormData(form);
+        const data = {};
+
+        for (let [key, value] of formData.entries()) {
+            data[key] = value;
+        }
+
+        const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            data[cb.name] = cb.checked;
+        });
+
+        // Validação
+        const requiredFields = ['razaoSocial', 'cpfCnpj', 'telefone1', 'modelo', 'serial', 'motivo'];
+        const missingFields = requiredFields.filter(field => !data[field]);
+
+        if (missingFields.length > 0) {
+            this.showToast('Campos obrigatórios não preenchidos', 'error', 
+                `Por favor, preencha: ${missingFields.join(', ')}`);
+            return;
+        }
+
+        try {
+            // Usa o serviço de email
+            await emailService.sendFormEmail(data, formType);
+            this.showToast('Email enviado com sucesso!', 'success', 
+                'O email foi aberto no seu cliente de email padrão.');
+            
+            // Salva automaticamente após enviar
+            this.saveForm(formType);
+        } catch (error) {
+            this.showToast('Erro ao enviar email', 'error', error.message);
+        }
+    }
+
+    // Painel administrativo
+    renderAdminPanel() {
+        if (!this.hasPermission('all')) {
+            return this.renderAccessDenied();
+        }
+
+        const stats = this.getSystemStats();
+        return `
+            <div class="admin-panel">
+                <div class="admin-header">
+                    <h1>Painel Administrativo</h1>
+                    <p>Gerenciamento completo do sistema</p>
+                </div>
+                
+                <div class="stats-overview">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
+                        <div class="stat-number">${this.forms.length}</div>
+                        <div class="stat-label">Total de Formulários</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-users"></i></div>
+                        <div class="stat-number">3</div>
+                        <div class="stat-label">Usuários Ativos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-calendar"></i></div>
+                        <div class="stat-number">${new Date().getDate()}</div>
+                        <div class="stat-label">Dia do Mês</div>
+                    </div>
+                </div>
+
+                <div class="admin-tabs">
+                    <button class="admin-tab-btn active" onclick="app.showAdminTab('forms')">
+                        <i class="fas fa-file-alt"></i> Formulários
+                    </button>
+                    <button class="admin-tab-btn" onclick="app.showAdminTab('users')">
+                        <i class="fas fa-users"></i> Usuários
+                    </button>
+                    <button class="admin-tab-btn" onclick="app.showAdminTab('settings')">
+                        <i class="fas fa-cog"></i> Configurações
+                    </button>
+                </div>
+
+                <div id="admin-content">
+                    ${this.renderFormsTable()}
+                </div>
+            </div>
+        `;
+    }
+
+    renderFormsTable() {
+        if (this.forms.length === 0) {
+            return `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <h3>Nenhum formulário encontrado</h3>
+                    <p>Os formulários enviados aparecerão aqui.</p>
+                </div>
+            `;
+        }
+
+        const formsHtml = this.forms.map(form => `
             <tr>
                 <td>${form.id}</td>
-                <td>${form.type.toUpperCase()}</td>
+                <td><span class="badge badge-${form.type}">${this.getFormTypeLabel(form.type)}</span></td>
                 <td>${form.data.razaoSocial || 'N/A'}</td>
                 <td>${form.data.modelo || 'N/A'}</td>
-                <td>${form.data.serial || 'N/A'}</td>
-                <td>${new Date(form.createdAt).toLocaleString('pt-BR')}</td>
+                <td>${new Date(form.createdAt).toLocaleDateString('pt-BR')}</td>
                 <td>${form.createdBy}</td>
                 <td>
-                    <button class="btn-delete" onclick="confirmDelete('${form.id}')">
+                    <button class="btn-sm btn-primary" onclick="app.viewForm('${form.id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-sm btn-danger" onclick="app.deleteForm('${form.id}')">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
             </tr>
+        `).join('');
+
+        return `
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tipo</th>
+                            <th>Cliente</th>
+                            <th>Modelo</th>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${formsHtml}
+                    </tbody>
+                </table>
+            </div>
         `;
-    });
-    
-    return `
-        <div class="form-container">
-            <div class="form-header">
-                <i class="fas fa-database"></i>
-                <h2>DADOS DO SISTEMA</h2>
-            </div>
-            <div class="form-content">
-                <div class="data-stats">
-                    <div class="stat-card">
-                        <i class="fas fa-file-alt"></i>
-                        <div>
-                            <h3>${forms.length}</h3>
-                            <p>Formulários Salvos</p>
+    }
+
+    setupAdminHandlers() {
+        // Implementar handlers específicos do admin se necessário
+    }
+
+    showAdminTab(tabName) {
+        // Atualiza botões ativos
+        document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+
+        const content = document.getElementById('admin-content');
+        
+        switch (tabName) {
+            case 'forms':
+                content.innerHTML = this.renderFormsTable();
+                break;
+            case 'users':
+                content.innerHTML = this.renderUsersTable();
+                break;
+            case 'settings':
+                content.innerHTML = this.renderSettingsPanel();
+                break;
+        }
+    }
+
+    renderUsersTable() {
+        return `
+            <div class="users-management">
+                <h3>Gerenciamento de Usuários</h3>
+                <div class="users-list">
+                    <div class="user-card">
+                        <div class="user-avatar"><i class="fas fa-user-shield"></i></div>
+                        <div class="user-info">
+                            <h4>Administrador</h4>
+                            <p>admin - Acesso total ao sistema</p>
+                            <span class="badge badge-admin">Admin</span>
                         </div>
                     </div>
-                    <div class="stat-card">
-                        <i class="fas fa-tools"></i>
-                        <div>
-                            <h3>${forms.filter(f => f.type === 'service').length}</h3>
-                            <p>Serviços</p>
+                    <div class="user-card">
+                        <div class="user-avatar"><i class="fas fa-user-cog"></i></div>
+                        <div class="user-info">
+                            <h4>Técnico Especializado</h4>
+                            <p>tecnico - Serviços e demonstrações</p>
+                            <span class="badge badge-tecnico">Técnico</span>
                         </div>
                     </div>
-                    <div class="stat-card">
-                        <i class="fas fa-desktop"></i>
-                        <div>
-                            <h3>${forms.filter(f => f.type === 'demonstracao').length}</h3>
-                            <p>Demonstrações</p>
+                    <div class="user-card">
+                        <div class="user-avatar"><i class="fas fa-user-tie"></i></div>
+                        <div class="user-info">
+                            <h4>Consultor de Vendas</h4>
+                            <p>vendas - Vendas e aplicações</p>
+                            <span class="badge badge-vendedor">Vendedor</span>
                         </div>
                     </div>
                 </div>
-                <div class="data-table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Tipo</th>
-                                <th>Cliente</th>
-                                <th>Modelo</th>
-                                <th>Serial</th>
-                                <th>Data</th>
-                                <th>Usuário</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tableContent || '<tr><td colspan="8">Nenhum formulário encontrado</td></tr>'}
-                        </tbody>
-                    </table>
+            </div>
+        `;
+    }
+
+    renderSettingsPanel() {
+        return `
+            <div class="settings-panel">
+                <h3>Configurações do Sistema</h3>
+                <div class="settings-grid">
+                    <div class="setting-card">
+                        <h4><i class="fas fa-envelope"></i> Configurações de Email</h4>
+                        <p>Configure os parâmetros de envio de email</p>
+                        <button class="btn btn-primary" onclick="app.showEmailSettings()">
+                            Configurar
+                        </button>
+                    </div>
+                    <div class="setting-card">
+                        <h4><i class="fas fa-database"></i> Backup de Dados</h4>
+                        <p>Faça backup dos dados do sistema</p>
+                        <button class="btn btn-success" onclick="app.backupData()">
+                            Fazer Backup
+                        </button>
+                    </div>
+                    <div class="setting-card">
+                        <h4><i class="fas fa-trash"></i> Limpar Dados</h4>
+                        <p>Remove todos os formulários salvos</p>
+                        <button class="btn btn-danger" onclick="app.clearAllData()">
+                            Limpar Tudo
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
-}
-
-function confirmDelete(formId) {
-    if (confirm('Tem certeza que deseja excluir este registro?')) {
-        deleteForm(formId);
-        switchTab('RAWDATA');
-        Utils.showToast('Registro excluído com sucesso!');
+        `;
     }
-}
 
-// Main application functions
-function showLoading() {
-    document.getElementById('loading-screen').classList.remove('hidden');
-    document.getElementById('login-container').classList.add('hidden');
-    document.getElementById('main-app').classList.add('hidden');
-}
+    // Utilitários
+    getFormTypeLabel(type) {
+        const labels = {
+            'service': 'Serviço',
+            'demonstracao': 'Demonstração',
+            'aplicacao': 'Aplicação',
+            'password': 'Licença',
+            'instalacao': 'Instalação'
+        };
+        return labels[type] || type;
+    }
 
-function showLogin() {
-    document.getElementById('loading-screen').classList.add('hidden');
-    document.getElementById('login-container').classList.remove('hidden');
-    document.getElementById('main-app').classList.add('hidden');
-}
+    getSystemStats() {
+        const stats = {
+            service: 0,
+            demonstracao: 0,
+            aplicacao: 0,
+            password: 0,
+            instalacao: 0
+        };
 
-function showMainApp() {
-    document.getElementById('loading-screen').classList.add('hidden');
-    document.getElementById('login-container').classList.add('hidden');
-    document.getElementById('main-app').classList.remove('hidden');
-    
-    updateUserInterface();
-    switchTab('MENU');
-}
+        this.forms.forEach(form => {
+            if (stats.hasOwnProperty(form.type)) {
+                stats[form.type]++;
+            }
+        });
 
-function updateUserInterface() {
-    const user = getCurrentUser();
-    if (user) {
-        document.getElementById('user-name').textContent = user.name;
-        document.getElementById('user-role').textContent = `(${user.role})`;
-        document.getElementById('current-date').textContent = Utils.formatDate();
+        return stats;
+    }
+
+    renderRecentActivity() {
+        const recentForms = this.forms
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 5);
+
+        if (recentForms.length === 0) {
+            return '<p class="text-secondary">Nenhuma atividade recente</p>';
+        }
+
+        return recentForms.map(form => `
+            <div class="activity-item">
+                <div class="activity-icon">
+                    <i class="fas fa-${this.getFormIcon(form.type)}"></i>
+                </div>
+                <div class="activity-details">
+                    <h4>${this.getFormTypeLabel(form.type)} - ${form.data.razaoSocial || 'N/A'}</h4>
+                    <p>${new Date(form.createdAt).toLocaleString('pt-BR')} por ${form.createdBy}</p>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    getFormIcon(type) {
+        const icons = {
+            'service': 'tools',
+            'demonstracao': 'desktop',
+            'aplicacao': 'file-alt',
+            'password': 'key',
+            'instalacao': 'download'
+        };
+        return icons[type] || 'file';
+    }
+
+    // Modais e utilitários
+    showModal(title, content, actions = '') {
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-body').innerHTML = content;
+        document.getElementById('modal-footer').innerHTML = actions;
+        document.getElementById('modal-overlay').classList.remove('hidden');
+    }
+
+    closeModal() {
+        document.getElementById('modal-overlay').classList.add('hidden');
+    }
+
+    showToast(title, type = 'info', message = '') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
         
-        // Show admin features if user is admin
-        if (user.role === 'admin') {
-            document.getElementById('admin-config-btn').classList.remove('hidden');
-            document.getElementById('rawdata-tab').classList.remove('hidden');
-        }
+        const icons = {
+            success: 'check-circle',
+            error: 'exclamation-circle',
+            warning: 'exclamation-triangle',
+            info: 'info-circle'
+        };
+
+        toast.innerHTML = `
+            <div class="toast-header">
+                <div class="toast-icon">
+                    <i class="fas fa-${icons[type]}"></i>
+                </div>
+                <div class="toast-title">${title}</div>
+            </div>
+            ${message ? `<div class="toast-message">${message}</div>` : ''}
+        `;
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.remove();
+        }, 5000);
+    }
+
+    // Gerenciamento de dados
+    loadForms() {
+        return JSON.parse(localStorage.getItem('miniescopo_forms') || '[]');
+    }
+
+    saveForms() {
+        localStorage.setItem('miniescopo_forms', JSON.stringify(this.forms));
+    }
+
+    saveUser(user) {
+        localStorage.setItem('miniescopo_user', JSON.stringify(user));
+    }
+
+    getSavedUser() {
+        return JSON.parse(localStorage.getItem('miniescopo_user') || 'null');
+    }
+
+    validateUser(user) {
+        return user && user.username && user.name && user.role;
+    }
+
+    generateId() {
+        return 'form_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    hasPermission(permission) {
+        if (!this.currentUser) return false;
+        return this.currentUser.permissions.includes('all') || 
+               this.currentUser.permissions.includes(permission);
+    }
+
+    // Interface utilities
+    updateDateTime() {
+        const now = new Date();
+        const dateTimeStr = now.toLocaleString('pt-BR', {
+            weekday: 'short',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
         
-        // Update navigation based on permissions
-        updateNavigation();
+        const element = document.getElementById('current-date-time');
+        if (element) {
+            element.textContent = dateTimeStr;
+        }
+    }
+
+    updateNotificationCount() {
+        const count = this.notifications.length;
+        document.getElementById('notification-count').textContent = count;
+    }
+
+    // Screen transitions
+    showLoading() {
+        document.getElementById('loading-screen').classList.remove('hidden');
+        document.getElementById('login-container').classList.add('hidden');
+        document.getElementById('main-app').classList.add('hidden');
+    }
+
+    showLogin() {
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('login-container').classList.remove('hidden');
+        document.getElementById('main-app').classList.add('hidden');
+    }
+
+    // User menu
+    toggleUserMenu() {
+        const dropdown = document.getElementById('user-dropdown');
+        dropdown.classList.toggle('hidden');
+    }
+
+    closeUserMenu() {
+        document.getElementById('user-dropdown').classList.add('hidden');
+    }
+
+    // Actions
+    showProfile() {
+        this.showModal('Perfil do Usuário', `
+            <div class="profile-info">
+                <div class="profile-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="profile-details">
+                    <h3>${this.currentUser.name}</h3>
+                    <p><strong>Usuário:</strong> ${this.currentUser.username}</p>
+                    <p><strong>Cargo:</strong> ${this.currentUser.role}</p>
+                    <p><strong>Permissões:</strong> ${this.currentUser.permissions.join(', ')}</p>
+                </div>
+            </div>
+        `, `
+            <button class="btn btn-primary" onclick="app.closeModal()">Fechar</button>
+        `);
+        this.closeUserMenu();
+    }
+
+    showSettings() {
+        this.showModal('Configurações', `
+            <div class="settings-content">
+                <h4>Configurações de Email</h4>
+                <p>Configure o serviço de email para envio automático de formulários.</p>
+                <button class="btn btn-primary" onclick="emailService.showConfig()">
+                    <i class="fas fa-envelope"></i> Configurar Email
+                </button>
+            </div>
+        `, `
+            <button class="btn btn-secondary" onclick="app.closeModal()">Fechar</button>
+        `);
+        this.closeUserMenu();
+    }
+
+    showNotifications() {
+        this.showModal('Notificações', `
+            <div class="notifications-content">
+                ${this.notifications.length === 0 ? 
+                    '<p class="text-center text-secondary">Nenhuma notificação</p>' : 
+                    this.notifications.map(n => `
+                        <div class="notification-item">
+                            <i class="fas fa-${n.icon}"></i>
+                            <div>
+                                <h4>${n.title}</h4>
+                                <p>${n.message}</p>
+                                <small>${new Date(n.date).toLocaleString('pt-BR')}</small>
+                            </div>
+                        </div>
+                    `).join('')
+                }
+            </div>
+        `, `
+            <button class="btn btn-primary" onclick="app.closeModal()">Fechar</button>
+        `);
+    }
+
+    logout() {
+        localStorage.removeItem('miniescopo_user');
+        this.currentUser = null;
+        this.showToast('Logout realizado', 'info', 'Você foi desconectado do sistema.');
+        setTimeout(() => {
+            this.showLogin();
+        }, 1000);
+    }
+
+    // Placeholder functions
+    showHelp() {
+        this.showToast('Ajuda', 'info', 'Sistema de ajuda em desenvolvimento.');
+    }
+
+    showSupport() {
+        this.showToast('Suporte', 'info', 'Entre em contato com o suporte técnico.');
+    }
+
+    showAbout() {
+        this.showModal('Sobre o Sistema', `
+            <div class="about-content">
+                <div class="about-logo">
+                    <i class="fas fa-cogs"></i>
+                </div>
+                <h3>Sistema MiniEscopo V4.9</h3>
+                <p>Sistema completo de gestão empresarial para solicitações de serviços, demonstrações, aplicações e licenças.</p>
+                <div class="about-features">
+                    <h4>Funcionalidades:</h4>
+                    <ul>
+                        <li>Gestão de serviços técnicos</li>
+                        <li>Agendamento de demonstrações</li>
+                        <li>Solicitação de aplicações</li>
+                        <li>Controle de licenças</li>
+                        <li>Painel administrativo</li>
+                        <li>Sistema de notificações</li>
+                        <li>Envio automático de emails</li>
+                    </ul>
+                </div>
+                <div class="about-info">
+                    <p><strong>Versão:</strong> 4.9</p>
+                    <p><strong>Desenvolvido em:</strong> ${new Date().getFullYear()}</p>
+                </div>
+            </div>
+        `, `
+            <button class="btn btn-primary" onclick="app.closeModal()">Fechar</button>
+        `);
+    }
+
+    // Admin functions
+    viewForm(formId) {
+        const form = this.forms.find(f => f.id === formId);
+        if (!form) return;
+
+        this.showModal(`Visualizar ${this.getFormTypeLabel(form.type)}`, `
+            <div class="form-view">
+                <div class="form-view-section">
+                    <h4>Dados do Cliente</h4>
+                    <p><strong>Nome/Razão Social:</strong> ${form.data.razaoSocial || 'N/A'}</p>
+                    <p><strong>CPF/CNPJ:</strong> ${form.data.cpfCnpj || 'N/A'}</p>
+                    <p><strong>Telefone:</strong> ${form.data.telefone1 || 'N/A'}</p>
+                    <p><strong>Email:</strong> ${form.data.email || 'N/A'}</p>
+                </div>
+                <div class="form-view-section">
+                    <h4>Dados do Equipamento</h4>
+                    <p><strong>Modelo:</strong> ${form.data.modelo || 'N/A'}</p>
+                    <p><strong>Serial:</strong> ${form.data.serial || 'N/A'}</p>
+                    <p><strong>Motivo:</strong> ${form.data.motivo || 'N/A'}</p>
+                </div>
+                <div class="form-view-section">
+                    <h4>Informações Adicionais</h4>
+                    <p><strong>Criado em:</strong> ${new Date(form.createdAt).toLocaleString('pt-BR')}</p>
+                    <p><strong>Criado por:</strong> ${form.createdBy}</p>
+                </div>
+            </div>
+        `, `
+            <button class="btn btn-secondary" onclick="app.closeModal()">Fechar</button>
+        `);
+    }
+
+    deleteForm(formId) {
+        if (confirm('Tem certeza que deseja excluir este formulário?')) {
+            this.forms = this.forms.filter(f => f.id !== formId);
+            this.saveForms();
+            this.showToast('Formulário excluído', 'success', 'O formulário foi removido permanentemente.');
+            this.loadTabContent('admin'); // Recarrega a tabela
+        }
+    }
+
+    backupData() {
+        const data = {
+            forms: this.forms,
+            exportDate: new Date().toISOString(),
+            version: '4.9'
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+            type: 'application/json'
+        });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `miniescopo-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        this.showToast('Backup criado', 'success', 'Os dados foram exportados com sucesso.');
+    }
+
+    clearAllData() {
+        if (confirm('ATENÇÃO: Esta ação irá apagar todos os dados salvos. Deseja continuar?')) {
+            if (confirm('Tem certeza absoluta? Esta ação não pode ser desfeita.')) {
+                this.forms = [];
+                this.saveForms();
+                this.showToast('Dados limpos', 'warning', 'Todos os formulários foram removidos.');
+                this.loadTabContent('admin');
+            }
+        }
+    }
+
+    renderAccessDenied() {
+        return `
+            <div class="access-denied">
+                <div class="access-denied-icon">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <h2>Acesso Negado</h2>
+                <p>Você não tem permissão para acessar esta área.</p>
+                <button class="btn btn-primary" onclick="app.switchTab('dashboard')">
+                    Voltar ao Dashboard
+                </button>
+            </div>
+        `;
+    }
+
+    renderNotFound() {
+        return `
+            <div class="not-found">
+                <div class="not-found-icon">
+                    <i class="fas fa-question-circle"></i>
+                </div>
+                <h2>Página não encontrada</h2>
+                <p>A página solicitada não existe ou está em desenvolvimento.</p>
+                <button class="btn btn-primary" onclick="app.switchTab('dashboard')">
+                    Voltar ao Dashboard
+                </button>
+            </div>
+        `;
     }
 }
 
-function updateNavigation() {
-    const tabs = document.querySelectorAll('.nav-tab');
-    tabs.forEach(tab => {
-        const tabName = tab.dataset.tab.toLowerCase();
-        if (tabName === 'menu' || Utils.hasPermission(tabName) || (tabName === 'rawdata' && isAdmin()) || tabName === 'instalacao_demo') {
-            tab.style.display = 'flex';
-        } else {
-            tab.style.display = 'none';
-        }
-    });
-}
-
-function switchTab(tabName) {
-    AppState.currentTab = tabName;
+// Função global para alternar senha
+function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const toggleBtn = document.querySelector('.password-toggle i');
     
-    // Check permissions
-    if (tabName !== 'MENU' && tabName !== 'INSTALACAO_DEMO' && !Utils.hasPermission(tabName.toLowerCase()) && !(tabName === 'RAWDATA' && isAdmin())) {
-        Utils.showToast('Você não tem permissão para acessar esta seção', 'error');
-        return;
-    }
-    
-    // Update navigation
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    const activeTab = document.querySelector(`[data-tab="${tabName}"]`);
-    if (activeTab) {
-        activeTab.classList.add('active');
-    }
-    
-    // Update content
-    const contentArea = document.getElementById('content-area');
-    
-    switch (tabName) {
-        case 'MENU':
-            contentArea.innerHTML = renderMenu();
-            break;
-        case 'SERVICE':
-            contentArea.innerHTML = '';
-            contentArea.appendChild(renderServiceForm());
-            break;
-        case 'DEMONSTRACAO':
-            contentArea.innerHTML = '';
-            contentArea.appendChild(renderDemonstracaoForm());
-            break;
-        case 'APLICACAO':
-            contentArea.innerHTML = '';
-            contentArea.appendChild(renderAplicacaoForm());
-            break;
-        case 'PASSWORD':
-            contentArea.innerHTML = '';
-            contentArea.appendChild(renderPasswordForm());
-            break;
-        case 'INSTALACAO_DEMO':
-            contentArea.innerHTML = '';
-            contentArea.appendChild(renderInstalacaoForm());
-            break;
-        case 'RAWDATA':
-            contentArea.innerHTML = renderRawData();
-            break;
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleBtn.className = 'fas fa-eye-slash';
+    } else {
+        passwordInput.type = 'password';
+        toggleBtn.className = 'fas fa-eye';
     }
 }
 
-function showAdminConfig() {
-    document.getElementById('admin-modal').classList.remove('hidden');
-}
-
-function closeModal() {
-    document.getElementById('admin-modal').classList.add('hidden');
-}
-
-function showEmailConfig() {
-    document.getElementById('email-modal').classList.remove('hidden');
-}
-
-function closeEmailModal() {
-    document.getElementById('email-modal').classList.add('hidden');
-}
-
-// Event listeners
-document.addEventListener('DOMContentLoaded', function() {
-    // Show loading screen initially
-    showLoading();
-    
-    // Simulate loading time
-    setTimeout(() => {
-        const user = getCurrentUser();
-        if (user) {
-            showMainApp();
-        } else {
-            showLogin();
-        }
-    }, 2000);
-    
-    // Login form handler
-    document.getElementById('login-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        
-        if (login(username, password)) {
-            Utils.showToast(`Bem-vindo ao sistema, ${getCurrentUser().name}!`);
-            showMainApp();
-        } else {
-            Utils.showToast('Usuário ou senha incorretos', 'error');
-        }
-    });
-    
-    // Close modal on outside click
-    document.getElementById('admin-modal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            this.classList.add('hidden');
-        }
-    });
-    
-    document.getElementById('email-modal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            this.classList.add('hidden');
-        }
-    });
+// Inicialização da aplicação
+let app;
+document.addEventListener('DOMContentLoaded', () => {
+    app = new MiniEscopoApp();
 });
