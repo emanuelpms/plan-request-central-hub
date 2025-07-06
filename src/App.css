@@ -1,0 +1,13 @@
+
+/* Import the main styles */
+@import url('/styles.css');
+
+.App {
+  min-height: 100vh;
+}
+
+/* Ensure Font Awesome icons work */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
