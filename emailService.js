@@ -22,30 +22,28 @@ class EmailService {
     }
     
     async sendEmail(subject, body, attachments = []) {
-        if (!this.config.enabled) {
-            console.log('Email service not configured');
-            return false;
-        }
-        
         try {
-            // This would integrate with actual email service
-            // For now, we'll simulate the email sending
-            console.log('Sending email:', {
-                from: this.config.from,
-                to: this.config.to,
-                subject: subject,
-                body: body,
-                attachments: attachments
-            });
+            // Create mailto link with enhanced formatting
+            const mailtoLink = this.createMailtoLink(subject, body);
             
-            // Simulate email sending delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Try to open default email client
+            window.location.href = mailtoLink;
             
             return true;
         } catch (error) {
-            console.error('Failed to send email:', error);
-            return false;
+            console.error('Failed to open email client:', error);
+            throw new Error('Não foi possível abrir o cliente de email padrão');
         }
+    }
+    
+    createMailtoLink(subject, body) {
+        const config = this.config;
+        const to = config.to || '';
+        
+        const encodedSubject = encodeURIComponent(subject);
+        const encodedBody = encodeURIComponent(body);
+        
+        return `mailto:${to}?subject=${encodedSubject}&body=${encodedBody}`;
     }
     
     generateEmailBody(formData, formType) {
@@ -57,241 +55,127 @@ class EmailService {
             instalacao: 'INSTALAÇÃO DEMO'
         };
         
-        return `
-            <html>
-                <head>
-                    <style>
-                        body { font-family: Arial, sans-serif; }
-                        .header { background: #667eea; color: white; padding: 20px; text-align: center; }
-                        .content { padding: 20px; }
-                        .section { margin: 20px 0; }
-                        .field { margin: 10px 0; }
-                        .label { font-weight: bold; color: #333; }
-                        .value { color: #666; }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h1>Sistema MiniEscopo V4.9</h1>
-                        <h2>Nova Solicitação: ${typeLabels[formType]}</h2>
-                        <p>Data: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-                    </div>
-                    
-                    <div class="content">
-                        <div class="section">
-                            <h3>Dados do Cliente</h3>
-                            <div class="field">
-                                <span class="label">Nome/Razão Social:</span>
-                                <span class="value">${formData.razaoSocial || ''}</span>
-                            </div>
-                            <div class="field">
-                                <span class="label">CPF/CNPJ:</span>
-                                <span class="value">${formData.cpfCnpj || ''}</span>
-                            </div>
-                            <div class="field">
-                                <span class="label">Telefone 1:</span>
-                                <span class="value">${formData.telefone1 || ''}</span>
-                            </div>
-                            <div class="field">
-                                <span class="label">Telefone 2:</span>
-                                <span class="value">${formData.telefone2 || ''}</span>
-                            </div>
-                            <div class="field">
-                                <span class="label">E-mail:</span>
-                                <span class="value">${formData.email || ''}</span>
-                            </div>
-                            <div class="field">
-                                <span class="label">Responsável:</span>
-                                <span class="value">${formData.responsavel || ''}</span>
-                            </div>
-                            ${formData.setorResponsavel ? `
-                                <div class="field">
-                                    <span class="label">Setor:</span>
-                                    <span class="value">${formData.setorResponsavel}</span>
-                                </div>
-                            ` : ''}
-                        </div>
-                        
-                        <div class="section">
-                            <h3>Endereço</h3>
-                            <div class="field">
-                                <span class="label">CEP:</span>
-                                <span class="value">${formData.cep || ''}</span>
-                            </div>
-                            <div class="field">
-                                <span class="label">Endereço:</span>
-                                <span class="value">${formData.endereco || ''}</span>
-                            </div>
-                            <div class="field">
-                                <span class="label">Número:</span>
-                                <span class="value">${formData.numero || ''}</span>
-                            </div>
-                            <div class="field">
-                                <span class="label">Bairro:</span>
-                                <span class="value">${formData.bairro || ''}</span>
-                            </div>
-                            <div class="field">
-                                <span class="label">Cidade:</span>
-                                <span class="value">${formData.cidade || ''}</span>
-                            </div>
-                            <div class="field">
-                                <span class="label">Estado:</span>
-                                <span class="value">${formData.estado || ''}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="section">
-                            <h3>Dados do Equipamento</h3>
-                            <div class="field">
-                                <span class="label">Modelo:</span>
-                                <span class="value">${formData.modelo || ''}</span>
-                            </div>
-                            <div class="field">
-                                <span class="label">Serial:</span>
-                                <span class="value">${formData.serial || ''}</span>
-                            </div>
-                            <div class="field">
-                                <span class="label">Motivo:</span>
-                                <span class="value">${formData.motivo || ''}</span>
-                            </div>
-                            ${formData.descricaoTestes ? `
-                                <div class="field">
-                                    <span class="label">Descrição:</span>
-                                    <span class="value">${formData.descricaoTestes}</span>
-                                </div>
-                            ` : ''}
-                            ${this.getSpecificFields(formData, formType)}
-                        </div>
-                        
-                        <div class="section">
-                            <p><em>Este email foi gerado automaticamente pelo Sistema MiniEscopo V4.9</em></p>
-                        </div>
-                    </div>
-                </body>
-            </html>
-        `;
+        const currentDate = new Date();
+        const dateStr = currentDate.toLocaleDateString('pt-BR');
+        const timeStr = currentDate.toLocaleTimeString('pt-BR');
+        
+        let emailBody = `SISTEMA MINIESCOPO V4.9\n`;
+        emailBody += `═══════════════════════════════════════════════════════════════\n\n`;
+        emailBody += `NOVA SOLICITAÇÃO: ${typeLabels[formType]}\n`;
+        emailBody += `Data: ${dateStr} às ${timeStr}\n\n`;
+        
+        emailBody += `DADOS DO CLIENTE\n`;
+        emailBody += `─────────────────────────────────────────────────────────────\n`;
+        emailBody += `Nome/Razão Social: ${formData.razaoSocial || 'N/A'}\n`;
+        emailBody += `CPF/CNPJ: ${formData.cpfCnpj || 'N/A'}\n`;
+        emailBody += `Telefone 1: ${formData.telefone1 || 'N/A'}\n`;
+        emailBody += `Telefone 2: ${formData.telefone2 || 'N/A'}\n`;
+        emailBody += `E-mail: ${formData.email || 'N/A'}\n`;
+        emailBody += `Responsável: ${formData.responsavel || 'N/A'}\n`;
+        
+        if (formData.setorResponsavel) {
+            emailBody += `Setor: ${formData.setorResponsavel}\n`;
+        }
+        
+        emailBody += `\nENDEREÇO\n`;
+        emailBody += `─────────────────────────────────────────────────────────────\n`;
+        emailBody += `CEP: ${formData.cep || 'N/A'}\n`;
+        emailBody += `Endereço: ${formData.endereco || 'N/A'}\n`;
+        emailBody += `Número: ${formData.numero || 'N/A'}\n`;
+        emailBody += `Bairro: ${formData.bairro || 'N/A'}\n`;
+        emailBody += `Cidade: ${formData.cidade || 'N/A'}\n`;
+        emailBody += `Estado: ${formData.estado || 'N/A'}\n`;
+        
+        emailBody += `\nDADOS DO EQUIPAMENTO\n`;
+        emailBody += `─────────────────────────────────────────────────────────────\n`;
+        emailBody += `Modelo: ${formData.modelo || 'N/A'}\n`;
+        emailBody += `Serial: ${formData.serial || 'N/A'}\n`;
+        emailBody += `Motivo: ${formData.motivo || 'N/A'}\n`;
+        
+        if (formData.descricaoTestes) {
+            emailBody += `Descrição: ${formData.descricaoTestes}\n`;
+        }
+        
+        // Add specific fields based on form type
+        emailBody += this.getSpecificFieldsText(formData, formType);
+        
+        emailBody += `\n═══════════════════════════════════════════════════════════════\n`;
+        emailBody += `Este email foi gerado automaticamente pelo Sistema MiniEscopo V4.9\n`;
+        emailBody += `Usuário: ${getCurrentUser()?.name || 'N/A'} (${getCurrentUser()?.role || 'N/A'})\n`;
+        
+        return emailBody;
     }
     
-    getSpecificFields(formData, formType) {
+    getSpecificFieldsText(formData, formType) {
         let fields = '';
         
         switch (formType) {
             case 'service':
+                fields += `\nDADOS ESPECÍFICOS DO SERVIÇO\n`;
+                fields += `─────────────────────────────────────────────────────────────\n`;
+                
                 if (formData.usoHumanoVeterinario) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">Uso:</span>
-                            <span class="value">${formData.usoHumanoVeterinario}</span>
-                        </div>
-                    `;
+                    fields += `Uso: ${formData.usoHumanoVeterinario}\n`;
                 }
                 if (formData.modeloImpressora) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">Modelo Impressora:</span>
-                            <span class="value">${formData.modeloImpressora}</span>
-                        </div>
-                    `;
+                    fields += `Modelo Impressora: ${formData.modeloImpressora}\n`;
                 }
                 if (formData.modeloNobreak) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">Modelo Nobreak:</span>
-                            <span class="value">${formData.modeloNobreak}</span>
-                        </div>
-                    `;
+                    fields += `Modelo Nobreak: ${formData.modeloNobreak}\n`;
                 }
                 break;
                 
             case 'demonstracao':
+                fields += `\nDADOS DA DEMONSTRAÇÃO\n`;
+                fields += `─────────────────────────────────────────────────────────────\n`;
+                
                 if (formData.cronogramaInicio) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">Data Início:</span>
-                            <span class="value">${new Date(formData.cronogramaInicio).toLocaleDateString('pt-BR')}</span>
-                        </div>
-                    `;
+                    fields += `Data Início: ${new Date(formData.cronogramaInicio).toLocaleDateString('pt-BR')}\n`;
                 }
                 if (formData.cronogramaFim) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">Data Fim:</span>
-                            <span class="value">${new Date(formData.cronogramaFim).toLocaleDateString('pt-BR')}</span>
-                        </div>
-                    `;
+                    fields += `Data Fim: ${new Date(formData.cronogramaFim).toLocaleDateString('pt-BR')}\n`;
                 }
                 if (formData.justificativaDemo) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">Justificativa:</span>
-                            <span class="value">${formData.justificativaDemo}</span>
-                        </div>
-                    `;
+                    fields += `Justificativa: ${formData.justificativaDemo}\n`;
                 }
                 break;
                 
             case 'password':
+                fields += `\nDADOS DA LICENÇA\n`;
+                fields += `─────────────────────────────────────────────────────────────\n`;
+                
                 if (formData.previsaoFaturamento) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">Previsão Faturamento:</span>
-                            <span class="value">${new Date(formData.previsaoFaturamento).toLocaleDateString('pt-BR')}</span>
-                        </div>
-                    `;
+                    fields += `Previsão Faturamento: ${new Date(formData.previsaoFaturamento).toLocaleDateString('pt-BR')}\n`;
                 }
                 if (formData.numeroBO) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">BO:</span>
-                            <span class="value">${formData.numeroBO}</span>
-                        </div>
-                    `;
+                    fields += `BO: ${formData.numeroBO}\n`;
                 }
                 break;
                 
             case 'aplicacao':
+                fields += `\nDADOS DA APLICAÇÃO\n`;
+                fields += `─────────────────────────────────────────────────────────────\n`;
+                
                 if (formData.dataAplicacao) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">Data Aplicação:</span>
-                            <span class="value">${new Date(formData.dataAplicacao).toLocaleDateString('pt-BR')}</span>
-                        </div>
-                    `;
+                    fields += `Data Aplicação: ${new Date(formData.dataAplicacao).toLocaleDateString('pt-BR')}\n`;
                 }
                 if (formData.numeroBO) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">BO:</span>
-                            <span class="value">${formData.numeroBO}</span>
-                        </div>
-                    `;
+                    fields += `BO: ${formData.numeroBO}\n`;
                 }
                 break;
                 
             case 'instalacao':
+                fields += `\nDADOS DA INSTALAÇÃO\n`;
+                fields += `─────────────────────────────────────────────────────────────\n`;
+                
                 if (formData.dataInicial) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">Data Inicial:</span>
-                            <span class="value">${new Date(formData.dataInicial).toLocaleDateString('pt-BR')}</span>
-                        </div>
-                    `;
+                    fields += `Data Inicial: ${new Date(formData.dataInicial).toLocaleDateString('pt-BR')}\n`;
                 }
                 if (formData.dataFinal) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">Data Final:</span>
-                            <span class="value">${new Date(formData.dataFinal).toLocaleDateString('pt-BR')}</span>
-                        </div>
-                    `;
+                    fields += `Data Final: ${new Date(formData.dataFinal).toLocaleDateString('pt-BR')}\n`;
                 }
                 if (formData.responsavelInstalacao) {
-                    fields += `
-                        <div class="field">
-                            <span class="label">Responsável Instalação:</span>
-                            <span class="value">${formData.responsavelInstalacao}</span>
-                        </div>
-                    `;
+                    fields += `Responsável Instalação: ${formData.responsavelInstalacao}\n`;
                 }
                 break;
         }
@@ -310,10 +194,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (emailForm) {
         // Load current config
         const config = emailService.config;
-        document.getElementById('email-from').value = config.from || '';
-        document.getElementById('email-to').value = config.to || '';
-        document.getElementById('smtp-server').value = config.smtpServer || 'smtp.outlook.com';
-        document.getElementById('smtp-port').value = config.smtpPort || 587;
+        
+        // Wait for elements to be available
+        setTimeout(() => {
+            const emailFromField = document.getElementById('email-from');
+            const emailToField = document.getElementById('email-to');
+            const smtpServerField = document.getElementById('smtp-server');
+            const smtpPortField = document.getElementById('smtp-port');
+            
+            if (emailFromField) emailFromField.value = config.from || '';
+            if (emailToField) emailToField.value = config.to || '';
+            if (smtpServerField) smtpServerField.value = config.smtpServer || 'smtp.outlook.com';
+            if (smtpPortField) smtpPortField.value = config.smtpPort || 587;
+        }, 100);
         
         emailForm.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -328,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             emailService.saveConfig(newConfig);
             closeEmailModal();
-            showToast('Configurações de email salvas com sucesso!', 'success');
+            Utils.showToast('Configurações de email salvas com sucesso!', 'success');
         });
     }
 });
@@ -346,15 +239,18 @@ async function sendFormEmail(formData, formType) {
     const subject = `Nova Solicitação: ${typeLabels[formType]} - ${formData.razaoSocial}`;
     const body = emailService.generateEmailBody(formData, formType);
     
-    const success = await emailService.sendEmail(subject, body);
-    
-    if (success) {
-        showToast('Email enviado com sucesso!', 'success');
-    } else {
-        showToast('Falha ao enviar email. Verifique as configurações.', 'error');
+    try {
+        const success = await emailService.sendEmail(subject, body);
+        
+        if (success) {
+            Utils.showToast('Email sendo aberto no cliente padrão...', 'success');
+        }
+        
+        return success;
+    } catch (error) {
+        Utils.showToast('Erro: ' + error.message, 'error');
+        return false;
     }
-    
-    return success;
 }
 
 // Export for use in main app
