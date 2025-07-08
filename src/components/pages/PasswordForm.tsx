@@ -260,40 +260,444 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({ editingData, onClear
   };
 
   const generateEmailBody = (): string => {
+    const currentDate = new Date().toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
     return `
-SOLICITAÇÃO DE LICENÇA
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitação de Licença - MiniEscopo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f7fa;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="40" r="1.5" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="80" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
+            opacity: 0.3;
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header .subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+        
+        .date-info {
+            background: rgba(255,255,255,0.1);
+            padding: 15px 25px;
+            margin: 20px -30px -30px -30px;
+            text-align: center;
+            font-size: 14px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 35px;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .section-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+            color: #eab308;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .field {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .field:hover {
+            border-color: #eab308;
+            box-shadow: 0 2px 8px rgba(234, 179, 8, 0.1);
+        }
+        
+        .field-label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+            margin-bottom: 6px;
+            display: block;
+        }
+        
+        .field-value {
+            color: #6b7280;
+            font-size: 15px;
+            word-break: break-word;
+        }
+        
+        .field-value.highlight {
+            color: #1f2937;
+            font-weight: 500;
+            background: linear-gradient(120deg, #fbbf24 0%, #f59e0b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .description-field {
+            grid-column: 1 / -1;
+            background: #fefce8;
+            border: 1px solid #fde047;
+        }
+        
+        .license-badge {
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+        
+        .license-badge::before {
+            content: '🔑';
+            margin-right: 8px;
+        }
+        
+        .attachments-section {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .attachment-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #fde68a;
+        }
+        
+        .attachment-item:last-child {
+            border-bottom: none;
+        }
+        
+        .attachment-item::before {
+            content: '📎';
+            margin-right: 10px;
+        }
+        
+        .footer {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #d1d5db;
+        }
+        
+        .footer-logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+        
+        .footer-text {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .system-info {
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.2);
+            border-radius: 6px;
+            padding: 10px 15px;
+            margin-top: 15px;
+            font-size: 13px;
+            color: #a16207;
+        }
+        
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .field-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+        
+        .no-value {
+            color: #9ca3af;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="header-content">
+                <h1>🔑 Solicitação de Licença</h1>
+                <p class="subtitle">Sistema MiniEscopo - Gestão de Licenças</p>
+            </div>
+            <div class="date-info">
+                📅 Solicitação enviada em ${currentDate} às ${new Date().toLocaleTimeString('pt-BR')}
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- Dados do Cliente -->
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">👥</span>
+                    <h2 class="section-title">Dados do Cliente</h2>
+                </div>
+                <div class="field-grid">
+                    <div class="field">
+                        <span class="field-label">Nome/Razão Social</span>
+                        <div class="field-value highlight">${formData.nomeCliente || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">CPF/CNPJ</span>
+                        <div class="field-value">${formData.cpfCnpj || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Telefone Principal</span>
+                        <div class="field-value">${formData.telefone1 || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Telefone Secundário</span>
+                        <div class="field-value">${formData.telefone2 || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">E-mail</span>
+                        <div class="field-value">${formData.email || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Responsável</span>
+                        <div class="field-value">${formData.responsavel || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                </div>
+            </div>
 
-=== DADOS DO CLIENTE ===
-Nome/Razão Social: ${formData.nomeCliente}
-CPF/CNPJ: ${formData.cpfCnpj}
-Telefone Principal: ${formData.telefone1}
-${formData.telefone2 ? `Telefone Secundário: ${formData.telefone2}` : ''}
-${formData.email ? `Email: ${formData.email}` : ''}
-${formData.responsavel ? `Responsável: ${formData.responsavel}` : ''}
+            <!-- Endereço -->
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">📍</span>
+                    <h2 class="section-title">Endereço</h2>
+                </div>
+                <div class="field-grid">
+                    <div class="field">
+                        <span class="field-label">CEP</span>
+                        <div class="field-value">${formData.cep || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Endereço</span>
+                        <div class="field-value">${formData.endereco || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Número</span>
+                        <div class="field-value">${formData.numero || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Bairro</span>
+                        <div class="field-value">${formData.bairro || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Cidade</span>
+                        <div class="field-value">${formData.cidade || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Estado</span>
+                        <div class="field-value">${formData.estado || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                </div>
+            </div>
 
-=== ENDEREÇO ===
-${formData.cep ? `CEP: ${formData.cep}` : ''}
-${formData.endereco ? `Endereço: ${formData.endereco}${formData.numero ? `, ${formData.numero}` : ''}` : ''}
-${formData.bairro ? `Bairro: ${formData.bairro}` : ''}
-${formData.cidade && formData.estado ? `Cidade: ${formData.cidade} - ${formData.estado}` : ''}
+            <!-- Dados do Equipamento -->
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">⚙️</span>
+                    <h2 class="section-title">Dados do Equipamento</h2>
+                </div>
+                <div class="field-grid">
+                    <div class="field">
+                        <span class="field-label">Modelo</span>
+                        <div class="field-value highlight">${formData.modelo || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Número de Série</span>
+                        <div class="field-value highlight">${formData.numeroSerie || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Motivo da Solicitação</span>
+                        <div class="field-value highlight">${formData.motivo || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    ${formData.descricao ? `
+                    <div class="field description-field">
+                        <span class="field-label">Descrição Detalhada</span>
+                        <div class="field-value">${formData.descricao}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
 
-=== EQUIPAMENTO ===
-Modelo: ${formData.modelo}
-Número de Série: ${formData.numeroSerie}
-Motivo: ${formData.motivo}
-${formData.descricao ? `Descrição: ${formData.descricao}` : ''}
+            <!-- Detalhes da Licença -->
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">🔑</span>
+                    <h2 class="section-title">Detalhes da Licença</h2>
+                </div>
+                <div class="field-grid">
+                    <div class="field">
+                        <span class="field-label">Tipo de Licença</span>
+                        <div class="field-value highlight">${formData.tipoLicenca || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Quantidade de Licenças</span>
+                        <div class="field-value highlight">${formData.quantidadeLicencas || '<span class="no-value">Não informado</span>'}</div>
+                    </div>
+                    ${formData.versaoSoftware ? `
+                    <div class="field">
+                        <span class="field-label">Versão do Software</span>
+                        <div class="field-value">${formData.versaoSoftware}</div>
+                    </div>
+                    ` : ''}
+                    ${formData.dataVencimento ? `
+                    <div class="field">
+                        <span class="field-label">Data de Vencimento</span>
+                        <div class="field-value">${new Date(formData.dataVencimento).toLocaleDateString('pt-BR')}</div>
+                    </div>
+                    ` : ''}
+                    ${formData.observacoes ? `
+                    <div class="field description-field">
+                        <span class="field-label">Observações</span>
+                        <div class="field-value">${formData.observacoes}</div>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div class="license-badge">Nova Licença Solicitada</div>
+            </div>
 
-=== DETALHES DA LICENÇA ===
-Tipo de Licença: ${formData.tipoLicenca}
-Quantidade: ${formData.quantidadeLicencas}
-${formData.versaoSoftware ? `Versão do Software: ${formData.versaoSoftware}` : ''}
-${formData.dataVencimento ? `Data de Vencimento: ${new Date(formData.dataVencimento).toLocaleDateString('pt-BR')}` : ''}
-${formData.observacoes ? `Observações: ${formData.observacoes}` : ''}
-
-${attachments.length > 0 ? `=== ANEXOS ===
-${attachments.map(att => `- ${att.name} (${(att.size / 1024 / 1024).toFixed(2)} MB)`).join('\n')}` : ''}
-
-Data da solicitação: ${new Date().toLocaleString('pt-BR')}
+            ${attachments.length > 0 ? `
+            <!-- Anexos -->
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">📎</span>
+                    <h2 class="section-title">Anexos</h2>
+                </div>
+                <div class="attachments-section">
+                    ${attachments.map(att => `
+                        <div class="attachment-item">
+                            <span><strong>${att.name}</strong> (${(att.size / 1024 / 1024).toFixed(2)} MB)</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+        </div>
+        
+        <div class="footer">
+            <div class="footer-logo">MiniEscopo</div>
+            <div class="footer-text">Sistema de Gestão de Licenças</div>
+            <div class="footer-text">Email gerado automaticamente</div>
+            <div class="system-info">
+                🔑 Este email foi enviado através do sistema MiniEscopo em ${new Date().toLocaleString('pt-BR')}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
     `;
   };
 
