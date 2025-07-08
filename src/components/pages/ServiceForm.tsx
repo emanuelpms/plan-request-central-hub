@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Wrench, Calendar, AlertTriangle } from 'lucide-react';
 
@@ -30,21 +29,33 @@ export const ServiceForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('Iniciando envio de email...');
+    console.log('Dados do formulário:', formData);
+    
     try {
       // Verificar se o emailService está disponível
+      console.log('Verificando emailService...', typeof window.emailService);
+      
       if (typeof window.emailService === 'undefined') {
+        console.error('emailService não está disponível');
         alert('Serviço de email não está disponível. Verifique se o emailService.js foi carregado.');
         return;
       }
 
       // Verificar se está configurado
+      console.log('Verificando configuração...', window.emailService.isConfigured());
+      
       if (!window.emailService.isConfigured()) {
+        console.error('emailService não está configurado');
         alert('Configure o sistema de email antes de enviar. Acesse Configurações > Email.');
         return;
       }
 
+      console.log('Enviando email...');
+      
       // Enviar usando o emailService
-      await window.emailService.sendFormEmail(formData, 'service');
+      const result = await window.emailService.sendFormEmail(formData, 'service');
+      console.log('Resultado do envio:', result);
       
       // Salvar no localStorage
       const savedForms = JSON.parse(localStorage.getItem('miniescopo_forms') || '[]');
@@ -57,6 +68,7 @@ export const ServiceForm = () => {
       savedForms.push(newForm);
       localStorage.setItem('miniescopo_forms', JSON.stringify(savedForms));
       
+      console.log('Formulário salvo no localStorage');
       alert('Solicitação de serviço enviada com sucesso!');
       
       // Limpar formulário
@@ -85,8 +97,9 @@ export const ServiceForm = () => {
       });
       
     } catch (error) {
-      console.error('Erro ao enviar email:', error);
-      alert('Erro ao enviar email. Verifique suas configurações.');
+      console.error('Erro completo ao enviar email:', error);
+      console.error('Stack trace:', error.stack);
+      alert(`Erro ao enviar email: ${error.message}`);
     }
   };
 
