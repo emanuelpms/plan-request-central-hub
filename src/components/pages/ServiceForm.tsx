@@ -1,448 +1,794 @@
+import React, { useState, useEffect } from 'react';
+import { Wrench, Save, Send, Trash2, AlertCircle } from 'lucide-react';
+import { AttachmentButton } from '../AttachmentButton';
+import { 
+  validateCPFOrCNPJ, 
+  formatCPFOrCNPJ, 
+  formatPhone, 
+  formatCEP,
+  validateEmail,
+  validatePhone,
+  validateCEP
+} from '../../utils/validations';
 
-import React, { useState } from 'react';
-import { Save, Mail, RotateCcw, Wrench } from 'lucide-react';
+interface FormData {
+  id: string;
+  type: string;
+  data: any;
+  createdAt: string;
+}
 
-export const ServiceForm: React.FC = () => {
+interface ServiceFormProps {
+  editingData?: FormData | null;
+  onClearEdit?: () => void;
+}
+
+interface FormErrors {
+  [key: string]: string;
+}
+
+interface AttachmentFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  dataUrl: string;
+}
+
+export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEdit }) => {
   const [formData, setFormData] = useState({
+    // Dados do Cliente
     nomeCliente: '',
     cpfCnpj: '',
     telefone1: '',
     telefone2: '',
     email: '',
     responsavel: '',
+    // Endereço
+    cep: '',
     endereco: '',
     numero: '',
     bairro: '',
     cidade: '',
     estado: '',
-    cep: '',
+    // Equipamento
     modelo: '',
-    serial: '',
+    numeroSerie: '',
     motivo: '',
     descricao: '',
-    prioridade: '',
-    dataDesejada: '',
-    horarioPreferencia: '',
-    observacoesInternas: ''
+    // Específicos do Serviço
+    usoEquipamento: '',
+    modeloImpressora: '',
+    modeloNobreak: '',
+    dataPreferencial: '',
+    urgente: false
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [equipmentModels, setEquipmentModels] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    // Carregar modelos de equipamento
+    const savedModels = JSON.parse(localStorage.getItem('miniescopo_models') || '[]');
+    const modelNames = savedModels.map((m: any) => m.name);
+    setEquipmentModels(modelNames);
+
+    // Carregar dados para edição
+    if (editingData && editingData.type === 'service') {
+      setFormData(editingData.data);
+      if (onClearEdit) onClearEdit();
+    }
+  }, [editingData, onClearEdit]);
+
+  const validateField = (name: string, value: any): string => {
+    switch (name) {
+      case 'nomeCliente':
+        return !value?.trim() ? 'Nome/Razão Social é obrigatório' : '';
+      
+      case 'cpfCnpj':
+        if (!value?.trim()) return 'CPF/CNPJ é obrigatório';
+        if (!validateCPFOrCNPJ(value)) return 'CPF/CNPJ inválido';
+        return '';
+      
+      case 'telefone1':
+        if (!value?.trim()) return 'Telefone principal é obrigatório';
+        if (!validatePhone(value)) return 'Telefone inválido';
+        return '';
+      
+      case 'telefone2':
+        if (value?.trim() && !validatePhone(value)) return 'Telefone inválido';
+        return '';
+      
+      case 'email':
+        if (value?.trim() && !validateEmail(value)) return 'Email inválido';
+        return '';
+      
+      case 'cep':
+        if (value?.trim() && !validateCEP(value)) return 'CEP inválido';
+        return '';
+      
+      case 'modelo':
+        return !value?.trim() ? 'Modelo é obrigatório' : '';
+      
+      case 'numeroSerie':
+        return !value?.trim() ? 'Número de série é obrigatório' : '';
+      
+      case 'motivo':
+        return !value?.trim() ? 'Motivo é obrigatório' : '';
+      
+      case 'dataPreferencial':
+        if (value) {
+          const selectedDate = new Date(value);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (selectedDate < today) return 'Data não pode ser anterior a hoje';
+        }
+        return '';
+      
+      default:
+        return '';
+    }
   };
 
-  const handleSave = () => {
-    const forms = JSON.parse(localStorage.getItem('miniescopo_forms') || '[]');
-    const newForm = {
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+    
+    Object.keys(formData).forEach(key => {
+      const error = validateField(key, formData[key as keyof typeof formData]);
+      if (error) newErrors[key] = error;
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    let formattedValue = value;
+
+    // Formatação automática
+    if (name === 'cpfCnpj') {
+      formattedValue = formatCPFOrCNPJ(value);
+    } else if (name === 'telefone1' || name === 'telefone2') {
+      formattedValue = formatPhone(value);
+    } else if (name === 'cep') {
+      formattedValue = formatCEP(value);
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : formattedValue
+    }));
+
+    // Validação em tempo real
+    const error = validateField(name, formattedValue);
+    setErrors(prev => ({
+      ...prev,
+      [name]: error
+    }));
+  };
+
+  const buscarCEP = async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, '');
+    if (cleanCep.length !== 8) return;
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      
+      if (!data.erro) {
+        setFormData(prev => ({
+          ...prev,
+          endereco: data.logradouro || '',
+          bairro: data.bairro || '',
+          cidade: data.localidade || '',
+          estado: data.uf || ''
+        }));
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+    }
+  };
+
+  const handleCepBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    buscarCEP(e.target.value);
+  };
+
+  const clearForm = () => {
+    setFormData({
+      nomeCliente: '',
+      cpfCnpj: '',
+      telefone1: '',
+      telefone2: '',
+      email: '',
+      responsavel: '',
+      cep: '',
+      endereco: '',
+      numero: '',
+      bairro: '',
+      cidade: '',
+      estado: '',
+      modelo: '',
+      numeroSerie: '',
+      motivo: '',
+      descricao: '',
+      usoEquipamento: '',
+      modeloImpressora: '',
+      modeloNobreak: '',
+      dataPreferencial: '',
+      urgente: false
+    });
+    setErrors({});
+    setAttachments([]);
+  };
+
+  const saveForm = () => {
+    if (!validateForm()) {
+      alert('Por favor, corrija os erros no formulário antes de salvar.');
+      return;
+    }
+
+    const savedForms = JSON.parse(localStorage.getItem('miniescopo_forms') || '[]');
+    const formRecord = {
       id: Date.now().toString(),
       type: 'service',
-      data: formData,
-      createdAt: new Date().toISOString(),
-      status: 'Pendente'
+      data: { ...formData, attachments },
+      createdAt: new Date().toISOString()
     };
-    forms.push(newForm);
-    localStorage.setItem('miniescopo_forms', JSON.stringify(forms));
-    alert('Formulário de Serviço salvo com sucesso!');
+
+    savedForms.push(formRecord);
+    localStorage.setItem('miniescopo_forms', JSON.stringify(savedForms));
+    
+    alert('Formulário salvo com sucesso!');
   };
 
-  const handleClear = () => {
-    setFormData({
-      nomeCliente: '', cpfCnpj: '', telefone1: '', telefone2: '', email: '', responsavel: '',
-      endereco: '', numero: '', bairro: '', cidade: '', estado: '', cep: '',
-      modelo: '', serial: '', motivo: '', descricao: '', prioridade: '', dataDesejada: '',
-      horarioPreferencia: '', observacoesInternas: ''
-    });
+  const sendEmail = async () => {
+    if (!validateForm()) {
+      alert('Por favor, corrija os erros no formulário antes de enviar.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Buscar configurações de email
+      const emailConfigs = JSON.parse(localStorage.getItem('miniescopo_email_configs') || '[]');
+      const serviceConfig = emailConfigs.find((config: any) => config.formType === 'service');
+      
+      const toEmails = serviceConfig?.toEmails?.join(';') || '';
+      const ccEmails = serviceConfig?.ccEmails?.join(';') || '';
+      
+      const subject = `[MINIESCOPO] Solicitação de Serviço - ${formData.nomeCliente}`;
+      const body = generateEmailBody();
+      
+      const mailtoUrl = `mailto:${toEmails}${ccEmails ? `?cc=${ccEmails}` : '?'}${ccEmails ? '&' : ''}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      
+      window.open(mailtoUrl);
+      
+      // Salvar automaticamente após enviar
+      saveForm();
+      
+      alert('Email aberto no cliente padrão!');
+    } catch (error) {
+      alert('Erro ao enviar email');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleEmail = () => {
-    const subject = `Solicitação de Serviço Técnico - ${formData.nomeCliente}`;
-    const body = `
+  const generateEmailBody = (): string => {
+    return `
 SOLICITAÇÃO DE SERVIÇO TÉCNICO
 
 === DADOS DO CLIENTE ===
 Nome/Razão Social: ${formData.nomeCliente}
 CPF/CNPJ: ${formData.cpfCnpj}
 Telefone Principal: ${formData.telefone1}
-Telefone Alternativo: ${formData.telefone2}
-Email: ${formData.email}
-Responsável: ${formData.responsavel}
+${formData.telefone2 ? `Telefone Secundário: ${formData.telefone2}` : ''}
+${formData.email ? `Email: ${formData.email}` : ''}
+${formData.responsavel ? `Responsável: ${formData.responsavel}` : ''}
 
 === ENDEREÇO ===
-${formData.endereco}, ${formData.numero}
-Bairro: ${formData.bairro}
-Cidade: ${formData.cidade} - ${formData.estado}
-CEP: ${formData.cep}
+${formData.cep ? `CEP: ${formData.cep}` : ''}
+${formData.endereco ? `Endereço: ${formData.endereco}${formData.numero ? `, ${formData.numero}` : ''}` : ''}
+${formData.bairro ? `Bairro: ${formData.bairro}` : ''}
+${formData.cidade && formData.estado ? `Cidade: ${formData.cidade} - ${formData.estado}` : ''}
 
 === EQUIPAMENTO ===
 Modelo: ${formData.modelo}
-Número Serial: ${formData.serial}
+Número de Série: ${formData.numeroSerie}
+Motivo da Solicitação: ${formData.motivo}
+${formData.descricao ? `Descrição: ${formData.descricao}` : ''}
 
-=== SERVIÇO SOLICITADO ===
-Motivo: ${formData.motivo}
-Prioridade: ${formData.prioridade}
-Data Desejada: ${formData.dataDesejada}
-Horário Preferência: ${formData.horarioPreferencia}
+=== INFORMAÇÕES ESPECÍFICAS ===
+${formData.usoEquipamento ? `Uso do Equipamento: ${formData.usoEquipamento}` : ''}
+${formData.modeloImpressora ? `Modelo da Impressora: ${formData.modeloImpressora}` : ''}
+${formData.modeloNobreak ? `Modelo do Nobreak: ${formData.modeloNobreak}` : ''}
+${formData.dataPreferencial ? `Data Preferencial: ${new Date(formData.dataPreferencial).toLocaleDateString('pt-BR')}` : ''}
+${formData.urgente ? 'SOLICITAÇÃO URGENTE: SIM' : ''}
 
-=== DESCRIÇÃO ===
-${formData.descricao}
+${attachments.length > 0 ? `=== ANEXOS ===
+${attachments.map(att => `- ${att.name} (${(att.size / 1024 / 1024).toFixed(2)} MB)`).join('\n')}` : ''}
 
-=== OBSERVAÇÕES INTERNAS ===
-${formData.observacoesInternas}
-
----
-Sistema MiniEscopo V4.9
-Data da Solicitação: ${new Date().toLocaleString('pt-BR')}
+Data da solicitação: ${new Date().toLocaleString('pt-BR')}
     `;
-    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+  };
+
+  const renderFieldError = (fieldName: string) => {
+    if (errors[fieldName]) {
+      return (
+        <div className="flex items-center mt-1 text-red-600 text-sm">
+          <AlertCircle className="w-4 h-4 mr-1" />
+          {errors[fieldName]}
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6">
           <div className="flex items-center space-x-3">
             <Wrench className="w-8 h-8 text-white" />
-            <div>
-              <h2 className="text-2xl font-bold text-white">Serviço Técnico</h2>
-              <p className="text-blue-100">Solicitação de manutenção e suporte especializado</p>
-            </div>
+            <h2 className="text-2xl font-bold text-white">Solicitação de Serviço Técnico</h2>
           </div>
         </div>
 
-        <div className="p-8">
-          <div className="space-y-8">
-            {/* Dados do Cliente */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                Dados do Cliente
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nome/Razão Social *</label>
-                  <input
-                    type="text"
-                    name="nomeCliente"
-                    value={formData.nomeCliente}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">CPF/CNPJ *</label>
-                  <input
-                    type="text"
-                    name="cpfCnpj"
-                    value={formData.cpfCnpj}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Telefone Principal *</label>
-                  <input
-                    type="tel"
-                    name="telefone1"
-                    value={formData.telefone1}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Telefone Alternativo</label>
-                  <input
-                    type="tel"
-                    name="telefone2"
-                    value={formData.telefone2}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Responsável</label>
-                  <input
-                    type="text"
-                    name="responsavel"
-                    value={formData.responsavel}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
+        <form className="p-8 space-y-8">
+          {/* Dados do Cliente */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-blue-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Dados do Cliente</h3>
             </div>
-
-            {/* Endereço */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                Endereço para Atendimento
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
-                  <input
-                    type="text"
-                    name="endereco"
-                    value={formData.endereco}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Número *</label>
-                  <input
-                    type="text"
-                    name="numero"
-                    value={formData.numero}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">CEP</label>
-                  <input
-                    type="text"
-                    name="cep"
-                    value={formData.cep}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bairro *</label>
-                  <input
-                    type="text"
-                    name="bairro"
-                    value={formData.bairro}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Cidade *</label>
-                  <input
-                    type="text"
-                    name="cidade"
-                    value={formData.cidade}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Estado *</label>
-                  <select
-                    name="estado"
-                    value={formData.estado}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="AC">Acre</option>
-                    <option value="AL">Alagoas</option>
-                    <option value="AP">Amapá</option>
-                    <option value="AM">Amazonas</option>
-                    <option value="BA">Bahia</option>
-                    <option value="CE">Ceará</option>
-                    <option value="DF">Distrito Federal</option>
-                    <option value="ES">Espírito Santo</option>
-                    <option value="GO">Goiás</option>
-                    <option value="MA">Maranhão</option>
-                    <option value="MT">Mato Grosso</option>
-                    <option value="MS">Mato Grosso do Sul</option>
-                    <option value="MG">Minas Gerais</option>
-                    <option value="PA">Pará</option>
-                    <option value="PB">Paraíba</option>
-                    <option value="PR">Paraná</option>
-                    <option value="PE">Pernambuco</option>
-                    <option value="PI">Piauí</option>
-                    <option value="RJ">Rio de Janeiro</option>
-                    <option value="RN">Rio Grande do Norte</option>
-                    <option value="RS">Rio Grande do Sul</option>
-                    <option value="RO">Rondônia</option>
-                    <option value="RR">Roraima</option>
-                    <option value="SC">Santa Catarina</option>
-                    <option value="SP">São Paulo</option>
-                    <option value="SE">Sergipe</option>
-                    <option value="TO">Tocantins</option>
-                  </select>
-                </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nome/Razão Social *
+                </label>
+                <input
+                  type="text"
+                  name="nomeCliente"
+                  value={formData.nomeCliente}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.nomeCliente ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Digite o nome ou razão social"
+                />
+                {renderFieldError('nomeCliente')}
               </div>
-            </div>
 
-            {/* Dados do Equipamento */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                Dados do Equipamento
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Modelo do Equipamento *</label>
-                  <select
-                    name="modelo"
-                    value={formData.modelo}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Selecione o modelo...</option>
-                    <option value="LABGEO PT1000">LABGEO PT1000</option>
-                    <option value="LABGEO PT3000">LABGEO PT3000</option>
-                    <option value="LABGEO PT1000 VET">LABGEO PT1000 VET</option>
-                    <option value="LABGEO PT3000 VET">LABGEO PT3000 VET</option>
-                    <option value="LABGEO MINI">LABGEO MINI</option>
-                    <option value="LABGEO ULTRA">LABGEO ULTRA</option>
-                    <option value="OUTROS">OUTROS</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Número Serial *</label>
-                  <input
-                    type="text"
-                    name="serial"
-                    value={formData.serial}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  CPF/CNPJ *
+                </label>
+                <input
+                  type="text"
+                  name="cpfCnpj"
+                  value={formData.cpfCnpj}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.cpfCnpj ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  maxLength={18}
+                />
+                {renderFieldError('cpfCnpj')}
               </div>
-            </div>
 
-            {/* Dados do Serviço */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                Dados do Serviço Solicitado
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Motivo da Solicitação *</label>
-                  <select
-                    name="motivo"
-                    value={formData.motivo}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Selecione o motivo...</option>
-                    <option value="Instalação Inicial">Instalação Inicial</option>
-                    <option value="Manutenção Preventiva">Manutenção Preventiva</option>
-                    <option value="Manutenção Corretiva">Manutenção Corretiva</option>
-                    <option value="Atualização de Software">Atualização de Software</option>
-                    <option value="Troca de Peças">Troca de Peças</option>
-                    <option value="Calibração">Calibração</option>
-                    <option value="Treinamento">Treinamento de Usuários</option>
-                    <option value="Suporte Técnico">Suporte Técnico</option>
-                    <option value="Outros">Outros</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Prioridade *</label>
-                  <select
-                    name="prioridade"
-                    value={formData.prioridade}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Baixa">Baixa</option>
-                    <option value="Normal">Normal</option>
-                    <option value="Alta">Alta</option>
-                    <option value="Urgente">Urgente</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Data Desejada</label>
-                  <input
-                    type="date"
-                    name="dataDesejada"
-                    value={formData.dataDesejada}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Horário de Preferência</label>
-                  <select
-                    name="horarioPreferencia"
-                    value={formData.horarioPreferencia}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Manhã (08:00 - 12:00)">Manhã (08:00 - 12:00)</option>
-                    <option value="Tarde (13:00 - 17:00)">Tarde (13:00 - 17:00)</option>
-                    <option value="Comercial (08:00 - 18:00)">Comercial (08:00 - 18:00)</option>
-                    <option value="Indiferente">Indiferente</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Telefone Principal *
+                </label>
+                <input
+                  type="tel"
+                  name="telefone1"
+                  value={formData.telefone1}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.telefone1 ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+                {renderFieldError('telefone1')}
               </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Descrição Detalhada do Problema</label>
-                  <textarea
-                    name="descricao"
-                    value={formData.descricao}
-                    onChange={handleChange}
-                    rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Descreva detalhadamente o problema ou serviço necessário..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Observações Internas</label>
-                  <textarea
-                    name="observacoesInternas"
-                    value={formData.observacoesInternas}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Observações para uso interno da equipe técnica..."
-                  />
-                </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Telefone Secundário
+                </label>
+                <input
+                  type="tel"
+                  name="telefone2"
+                  value={formData.telefone2}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.telefone2 ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+                {renderFieldError('telefone2')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="exemplo@email.com"
+                />
+                {renderFieldError('email')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Responsável
+                </label>
+                <input
+                  type="text"
+                  name="responsavel"
+                  value={formData.responsavel}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nome do responsável"
+                />
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-gray-50 px-8 py-6 flex flex-wrap gap-4 justify-center">
-          <button
-            onClick={handleSave}
-            className="flex items-center space-x-2 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors shadow-md"
-          >
-            <Save className="w-5 h-5" />
-            <span>Salvar Formulário</span>
-          </button>
-          <button
-            onClick={handleClear}
-            className="flex items-center space-x-2 bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition-colors shadow-md"
-          >
-            <RotateCcw className="w-5 h-5" />
-            <span>Limpar Campos</span>
-          </button>
-          <button
-            onClick={handleEmail}
-            className="flex items-center space-x-2 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors shadow-md"
-          >
-            <Mail className="w-5 h-5" />
-            <span>Enviar por Email</span>
-          </button>
-        </div>
+          {/* Endereço */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-green-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Endereço</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  CEP
+                </label>
+                <input
+                  type="text"
+                  name="cep"
+                  value={formData.cep}
+                  onChange={handleInputChange}
+                  onBlur={handleCepBlur}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.cep ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="00000-000"
+                  maxLength={9}
+                />
+                {renderFieldError('cep')}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Endereço
+                </label>
+                <input
+                  type="text"
+                  name="endereco"
+                  value={formData.endereco}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Rua, Avenida, etc."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número
+                </label>
+                <input
+                  type="text"
+                  name="numero"
+                  value={formData.numero}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="123"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Bairro
+                </label>
+                <input
+                  type="text"
+                  name="bairro"
+                  value={formData.bairro}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nome do bairro"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cidade
+                </label>
+                <input
+                  type="text"
+                  name="cidade"
+                  value={formData.cidade}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nome da cidade"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Estado
+                </label>
+                <select
+                  name="estado"
+                  value={formData.estado}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Selecione</option>
+                  <option value="AC">Acre</option>
+                  <option value="AL">Alagoas</option>
+                  <option value="AP">Amapá</option>
+                  <option value="AM">Amazonas</option>
+                  <option value="BA">Bahia</option>
+                  <option value="CE">Ceará</option>
+                  <option value="DF">Distrito Federal</option>
+                  <option value="ES">Espírito Santo</option>
+                  <option value="GO">Goiás</option>
+                  <option value="MA">Maranhão</option>
+                  <option value="MT">Mato Grosso</option>
+                  <option value="MS">Mato Grosso do Sul</option>
+                  <option value="MG">Minas Gerais</option>
+                  <option value="PA">Pará</option>
+                  <option value="PB">Paraíba</option>
+                  <option value="PR">Paraná</option>
+                  <option value="PE">Pernambuco</option>
+                  <option value="PI">Piauí</option>
+                  <option value="RJ">Rio de Janeiro</option>
+                  <option value="RN">Rio Grande do Norte</option>
+                  <option value="RS">Rio Grande do Sul</option>
+                  <option value="RO">Rondônia</option>
+                  <option value="RR">Roraima</option>
+                  <option value="SC">Santa Catarina</option>
+                  <option value="SP">São Paulo</option>
+                  <option value="SE">Sergipe</option>
+                  <option value="TO">Tocantins</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Dados do Equipamento */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-orange-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Dados do Equipamento</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Modelo *
+                </label>
+                <select
+                  name="modelo"
+                  value={formData.modelo}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.modelo ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Selecione o modelo</option>
+                  {equipmentModels.map(model => (
+                    <option key={model} value={model}>{model}</option>
+                  ))}
+                  <option value="OUTROS">OUTROS</option>
+                </select>
+                {renderFieldError('modelo')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Série *
+                </label>
+                <input
+                  type="text"
+                  name="numeroSerie"
+                  value={formData.numeroSerie}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.numeroSerie ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Número de série do equipamento"
+                />
+                {renderFieldError('numeroSerie')}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Motivo da Solicitação *
+                </label>
+                <select
+                  name="motivo"
+                  value={formData.motivo}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.motivo ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Selecione o motivo</option>
+                  <option value="Instalação Inicial">Instalação Inicial</option>
+                  <option value="Manutenção Preventiva">Manutenção Preventiva</option>
+                  <option value="Manutenção Corretiva">Manutenção Corretiva</option>
+                  <option value="Atualização de Software">Atualização de Software</option>
+                  <option value="Troca de Peças">Troca de Peças</option>
+                  <option value="Calibração">Calibração</option>
+                  <option value="Treinamento">Treinamento</option>
+                  <option value="Outros">Outros</option>
+                </select>
+                {renderFieldError('motivo')}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Descrição Detalhada
+                </label>
+                <textarea
+                  name="descricao"
+                  value={formData.descricao}
+                  onChange={handleInputChange}
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Descreva detalhadamente o problema ou necessidade..."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Informações Específicas do Serviço */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-purple-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações Específicas do Serviço</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Uso do Equipamento
+                </label>
+                <select
+                  name="usoEquipamento"
+                  value={formData.usoEquipamento}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Selecione</option>
+                  <option value="Humano">Uso Humano</option>
+                  <option value="Veterinário">Uso Veterinário</option>
+                  <option value="Ambos">Ambos</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Data Preferencial
+                </label>
+                <input
+                  type="date"
+                  name="dataPreferencial"
+                  value={formData.dataPreferencial}
+                  onChange={handleInputChange}
+                  min={new Date().toISOString().split('T')[0]}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.dataPreferencial ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {renderFieldError('dataPreferencial')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Modelo da Impressora
+                </label>
+                <input
+                  type="text"
+                  name="modeloImpressora"
+                  value={formData.modeloImpressora}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: HP LaserJet Pro"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Modelo do Nobreak
+                </label>
+                <input
+                  type="text"
+                  name="modeloNobreak"
+                  value={formData.modeloNobreak}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: APC Back-UPS"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                name="urgente"
+                checked={formData.urgente}
+                onChange={handleInputChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label className="ml-2 block text-sm text-gray-900">
+                Solicitação Urgente
+              </label>
+            </div>
+          </div>
+
+          {/* Anexos */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-red-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Anexos</h3>
+            </div>
+            
+            <AttachmentButton 
+              onAttachmentsChange={setAttachments}
+              maxFiles={5}
+              maxSizePerFile={10}
+            />
+          </div>
+
+          {/* Botões de Ação */}
+          <div className="flex flex-wrap gap-4 pt-6 border-t">
+            <button
+              type="button"
+              onClick={clearForm}
+              className="flex items-center space-x-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              <Trash2 className="w-5 h-5" />
+              <span>Limpar</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={saveForm}
+              className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Save className="w-5 h-5" />
+              <span>Salvar</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={sendEmail}
+              disabled={isSubmitting}
+              className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              <Send className="w-5 h-5" />
+              <span>{isSubmitting ? 'Enviando...' : 'Enviar Email'}</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

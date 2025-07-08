@@ -9,20 +9,38 @@ import { AppForm } from './pages/AppForm';
 import { PasswordForm } from './pages/PasswordForm';
 import { InstallForm } from './pages/InstallForm';
 import { DataPage } from './pages/DataPage';
+import { ConfigPage } from './pages/ConfigPage';
 import { useUser } from '../context/UserContext';
 
-type Tab = 'menu' | 'service' | 'demo' | 'app' | 'password' | 'install' | 'data';
+type Tab = 'menu' | 'service' | 'demo' | 'app' | 'password' | 'install' | 'data' | 'config';
 
 interface DashboardProps {
   onLogout: () => void;
 }
 
+interface FormData {
+  id: string;
+  type: string;
+  data: any;
+  createdAt: string;
+}
+
 export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<Tab>('menu');
+  const [editingForm, setEditingForm] = useState<FormData | null>(null);
   const { user } = useUser();
 
   const hasPermission = (permission: string) => {
     return user?.permissions.includes('all') || user?.permissions.includes(permission);
+  };
+
+  const handleEditForm = (formData: FormData) => {
+    setEditingForm(formData);
+    setActiveTab(formData.type as Tab);
+  };
+
+  const clearEditingForm = () => {
+    setEditingForm(null);
   };
 
   const renderContent = () => {
@@ -30,17 +48,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       case 'menu':
         return <MenuPage onNavigate={setActiveTab} />;
       case 'service':
-        return hasPermission('service') ? <ServiceForm /> : <div className="text-red-500">Acesso negado</div>;
+        return hasPermission('service') ? 
+          <ServiceForm editingData={editingForm} onClearEdit={clearEditingForm} /> : 
+          <div className="text-red-500">Acesso negado</div>;
       case 'demo':
-        return hasPermission('demo') ? <DemoForm /> : <div className="text-red-500">Acesso negado</div>;
+        return hasPermission('demo') ? 
+          <DemoForm editingData={editingForm} onClearEdit={clearEditingForm} /> : 
+          <div className="text-red-500">Acesso negado</div>;
       case 'app':
-        return hasPermission('app') ? <AppForm /> : <div className="text-red-500">Acesso negado</div>;
+        return hasPermission('app') ? 
+          <AppForm editingData={editingForm} onClearEdit={clearEditingForm} /> : 
+          <div className="text-red-500">Acesso negado</div>;
       case 'password':
-        return hasPermission('password') ? <PasswordForm /> : <div className="text-red-500">Acesso negado</div>;
+        return hasPermission('password') ? 
+          <PasswordForm editingData={editingForm} onClearEdit={clearEditingForm} /> : 
+          <div className="text-red-500">Acesso negado</div>;
       case 'install':
-        return <InstallForm />;
+        return <InstallForm editingData={editingForm} onClearEdit={clearEditingForm} />;
       case 'data':
-        return user?.role === 'admin' ? <DataPage /> : <div className="text-red-500">Acesso negado</div>;
+        return user?.role === 'admin' ? 
+          <DataPage onEditForm={handleEditForm} /> : 
+          <div className="text-red-500">Acesso negado</div>;
+      case 'config':
+        return user?.role === 'admin' ? 
+          <ConfigPage /> : 
+          <div className="text-red-500">Acesso negado</div>;
       default:
         return <MenuPage onNavigate={setActiveTab} />;
     }

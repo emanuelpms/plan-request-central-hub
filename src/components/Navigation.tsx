@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { Home, Wrench, Monitor, FileText, Key, Download, Database } from 'lucide-react';
+import { Home, Wrench, Monitor, FileText, Key, Download, Database, Settings } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 
-type Tab = 'menu' | 'service' | 'demo' | 'app' | 'password' | 'install' | 'data';
+type Tab = 'menu' | 'service' | 'demo' | 'app' | 'password' | 'install' | 'data' | 'config';
 
 interface NavigationProps {
   activeTab: Tab;
@@ -25,6 +25,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
     { id: 'password' as Tab, label: 'Licenças', icon: Key, show: hasPermission('password') },
     { id: 'install' as Tab, label: 'Instalação', icon: Download, show: true },
     { id: 'data' as Tab, label: 'Dados', icon: Database, show: user?.role === 'admin' },
+    { id: 'config' as Tab, label: 'Configurações', icon: Settings, show: user?.role === 'admin' },
   ];
 
   return (
