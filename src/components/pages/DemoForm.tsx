@@ -1,506 +1,747 @@
+import React, { useState, useEffect } from 'react';
+import { Monitor, Save, Send, Trash2, AlertCircle } from 'lucide-react';
+import { AttachmentButton } from '../AttachmentButton';
+import { 
+  validateCPFOrCNPJ, 
+  formatCPFOrCNPJ, 
+  formatPhone, 
+  formatCEP,
+  validateEmail,
+  validatePhone,
+  validateCEP
+} from '../../utils/validations';
 
-import React, { useState } from 'react';
-import { Save, Mail, RotateCcw, Monitor, Calendar, Users } from 'lucide-react';
+interface FormData {
+  id: string;
+  type: string;
+  data: any;
+  createdAt: string;
+}
 
-export const DemoForm: React.FC = () => {
+interface DemoFormProps {
+  editingData?: FormData | null;
+  onClearEdit?: () => void;
+}
+
+interface FormErrors {
+  [key: string]: string;
+}
+
+interface AttachmentFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  dataUrl: string;
+}
+
+export const DemoForm: React.FC<DemoFormProps> = ({ editingData, onClearEdit }) => {
   const [formData, setFormData] = useState({
+    // Dados do Cliente
     nomeCliente: '',
-    empresa: '',
     cpfCnpj: '',
     telefone1: '',
     telefone2: '',
     email: '',
     responsavel: '',
-    cargo: '',
+    // Endereço
+    cep: '',
     endereco: '',
     numero: '',
     bairro: '',
     cidade: '',
     estado: '',
-    cep: '',
-    equipamentoInteresse: '',
-    finalidade: '',
-    tipoDemo: '',
-    dataDesejada: '',
-    horarioPreferencia: '',
-    duracaoEstimada: '',
-    numeroParticipantes: '',
-    localizacao: '',
-    recursos: '',
-    objetivos: '',
+    // Equipamento
+    modelo: '',
+    numeroSerie: '',
+    motivo: '',
+    descricao: '',
+    // Específicos da Demo
+    dataDemo: '',
+    duracao: '',
+    participantes: '',
     observacoes: ''
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [equipmentModels, setEquipmentModels] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const savedModels = JSON.parse(localStorage.getItem('miniescopo_models') || '[]');
+    const modelNames = savedModels.map((m: any) => m.name);
+    setEquipmentModels(modelNames);
+
+    if (editingData && editingData.type === 'demo') {
+      setFormData(editingData.data);
+      if (onClearEdit) onClearEdit();
+    }
+  }, [editingData, onClearEdit]);
+
+  const validateField = (name: string, value: any): string => {
+    switch (name) {
+      case 'nomeCliente':
+        return !value?.trim() ? 'Nome/Razão Social é obrigatório' : '';
+      case 'cpfCnpj':
+        if (!value?.trim()) return 'CPF/CNPJ é obrigatório';
+        if (!validateCPFOrCNPJ(value)) return 'CPF/CNPJ inválido';
+        return '';
+      case 'telefone1':
+        if (!value?.trim()) return 'Telefone principal é obrigatório';
+        if (!validatePhone(value)) return 'Telefone inválido';
+        return '';
+      case 'telefone2':
+        if (value?.trim() && !validatePhone(value)) return 'Telefone inválido';
+        return '';
+      case 'email':
+        if (value?.trim() && !validateEmail(value)) return 'Email inválido';
+        return '';
+      case 'cep':
+        if (value?.trim() && !validateCEP(value)) return 'CEP inválido';
+        return '';
+      case 'modelo':
+        return !value?.trim() ? 'Modelo é obrigatório' : '';
+      case 'numeroSerie':
+        return !value?.trim() ? 'Número de série é obrigatório' : '';
+      case 'motivo':
+        return !value?.trim() ? 'Motivo é obrigatório' : '';
+      case 'dataDemo':
+        if (value) {
+          const selectedDate = new Date(value);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (selectedDate < today) return 'Data não pode ser anterior a hoje';
+        }
+        return '';
+      default:
+        return '';
+    }
   };
 
-  const handleSave = () => {
-    const forms = JSON.parse(localStorage.getItem('miniescopo_forms') || '[]');
-    const newForm = {
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+    
+    Object.keys(formData).forEach(key => {
+      const error = validateField(key, formData[key as keyof typeof formData]);
+      if (error) newErrors[key] = error;
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    let formattedValue = value;
+
+    if (name === 'cpfCnpj') {
+      formattedValue = formatCPFOrCNPJ(value);
+    } else if (name === 'telefone1' || name === 'telefone2') {
+      formattedValue = formatPhone(value);
+    } else if (name === 'cep') {
+      formattedValue = formatCEP(value);
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: formattedValue
+    }));
+
+    const error = validateField(name, formattedValue);
+    setErrors(prev => ({
+      ...prev,
+      [name]: error
+    }));
+  };
+
+  const buscarCEP = async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, '');
+    if (cleanCep.length !== 8) return;
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      
+      if (!data.erro) {
+        setFormData(prev => ({
+          ...prev,
+          endereco: data.logradouro || '',
+          bairro: data.bairro || '',
+          cidade: data.localidade || '',
+          estado: data.uf || ''
+        }));
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+    }
+  };
+
+  const handleCepBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    buscarCEP(e.target.value);
+  };
+
+  const clearForm = () => {
+    setFormData({
+      nomeCliente: '',
+      cpfCnpj: '',
+      telefone1: '',
+      telefone2: '',
+      email: '',
+      responsavel: '',
+      cep: '',
+      endereco: '',
+      numero: '',
+      bairro: '',
+      cidade: '',
+      estado: '',
+      modelo: '',
+      numeroSerie: '',
+      motivo: '',
+      descricao: '',
+      dataDemo: '',
+      duracao: '',
+      participantes: '',
+      observacoes: ''
+    });
+    setErrors({});
+    setAttachments([]);
+  };
+
+  const saveForm = () => {
+    if (!validateForm()) {
+      alert('Por favor, corrija os erros no formulário antes de salvar.');
+      return;
+    }
+
+    const savedForms = JSON.parse(localStorage.getItem('miniescopo_forms') || '[]');
+    const formRecord = {
       id: Date.now().toString(),
       type: 'demo',
-      data: formData,
-      createdAt: new Date().toISOString(),
-      status: 'Agendado'
+      data: { ...formData, attachments },
+      createdAt: new Date().toISOString()
     };
-    forms.push(newForm);
-    localStorage.setItem('miniescopo_forms', JSON.stringify(forms));
-    alert('Demonstração agendada com sucesso!');
+
+    savedForms.push(formRecord);
+    localStorage.setItem('miniescopo_forms', JSON.stringify(savedForms));
+    
+    alert('Formulário salvo com sucesso!');
   };
 
-  const handleClear = () => {
-    setFormData({
-      nomeCliente: '', empresa: '', cpfCnpj: '', telefone1: '', telefone2: '', email: '', responsavel: '', cargo: '',
-      endereco: '', numero: '', bairro: '', cidade: '', estado: '', cep: '',
-      equipamentoInteresse: '', finalidade: '', tipoDemo: '', dataDesejada: '', horarioPreferencia: '',
-      duracaoEstimada: '', numeroParticipantes: '', localizacao: '', recursos: '', objetivos: '', observacoes: ''
-    });
+  const sendEmail = async () => {
+    if (!validateForm()) {
+      alert('Por favor, corrija os erros no formulário antes de enviar.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const emailConfigs = JSON.parse(localStorage.getItem('miniescopo_email_configs') || '[]');
+      const demoConfig = emailConfigs.find((config: any) => config.formType === 'demo');
+      
+      const toEmails = demoConfig?.toEmails?.join(';') || '';
+      const ccEmails = demoConfig?.ccEmails?.join(';') || '';
+      
+      const subject = `[MINIESCOPO] Solicitação de Demonstração - ${formData.nomeCliente}`;
+      const body = generateEmailBody();
+      
+      const mailtoUrl = `mailto:${toEmails}${ccEmails ? `?cc=${ccEmails}` : '?'}${ccEmails ? '&' : ''}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      
+      window.open(mailtoUrl);
+      saveForm();
+      
+      alert('Email aberto no cliente padrão!');
+    } catch (error) {
+      alert('Erro ao enviar email');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleEmail = () => {
-    const subject = `Agendamento de Demonstração - ${formData.nomeCliente}`;
-    const body = `
-AGENDAMENTO DE DEMONSTRAÇÃO
+  const generateEmailBody = (): string => {
+    return `
+SOLICITAÇÃO DE DEMONSTRAÇÃO
 
 === DADOS DO CLIENTE ===
-Nome: ${formData.nomeCliente}
-Empresa: ${formData.empresa}
+Nome/Razão Social: ${formData.nomeCliente}
 CPF/CNPJ: ${formData.cpfCnpj}
 Telefone Principal: ${formData.telefone1}
-Telefone Alternativo: ${formData.telefone2}
-Email: ${formData.email}
-Responsável: ${formData.responsavel}
-Cargo: ${formData.cargo}
+${formData.telefone2 ? `Telefone Secundário: ${formData.telefone2}` : ''}
+${formData.email ? `Email: ${formData.email}` : ''}
+${formData.responsavel ? `Responsável: ${formData.responsavel}` : ''}
 
 === ENDEREÇO ===
-${formData.endereco}, ${formData.numero}
-Bairro: ${formData.bairro}
-Cidade: ${formData.cidade} - ${formData.estado}
-CEP: ${formData.cep}
+${formData.cep ? `CEP: ${formData.cep}` : ''}
+${formData.endereco ? `Endereço: ${formData.endereco}${formData.numero ? `, ${formData.numero}` : ''}` : ''}
+${formData.bairro ? `Bairro: ${formData.bairro}` : ''}
+${formData.cidade && formData.estado ? `Cidade: ${formData.cidade} - ${formData.estado}` : ''}
 
-=== DEMONSTRAÇÃO SOLICITADA ===
-Equipamento de Interesse: ${formData.equipamentoInteresse}
-Finalidade: ${formData.finalidade}
-Tipo de Demonstração: ${formData.tipoDemo}
-Localização: ${formData.localizacao}
+=== EQUIPAMENTO ===
+Modelo: ${formData.modelo}
+Número de Série: ${formData.numeroSerie}
+Motivo: ${formData.motivo}
+${formData.descricao ? `Descrição: ${formData.descricao}` : ''}
 
-=== AGENDAMENTO ===
-Data Desejada: ${formData.dataDesejada}
-Horário Preferência: ${formData.horarioPreferencia}
-Duração Estimada: ${formData.duracaoEstimada}
-Número de Participantes: ${formData.numeroParticipantes}
+=== DETALHES DA DEMONSTRAÇÃO ===
+${formData.dataDemo ? `Data Preferencial: ${new Date(formData.dataDemo).toLocaleDateString('pt-BR')}` : ''}
+${formData.duracao ? `Duração: ${formData.duracao}` : ''}
+${formData.participantes ? `Participantes: ${formData.participantes}` : ''}
+${formData.observacoes ? `Observações: ${formData.observacoes}` : ''}
 
-=== RECURSOS NECESSÁRIOS ===
-${formData.recursos}
+${attachments.length > 0 ? `=== ANEXOS ===
+${attachments.map(att => `- ${att.name} (${(att.size / 1024 / 1024).toFixed(2)} MB)`).join('\n')}` : ''}
 
-=== OBJETIVOS ===
-${formData.objetivos}
-
-=== OBSERVAÇÕES ===
-${formData.observacoes}
-
----
-Sistema MiniEscopo V4.9
-Data da Solicitação: ${new Date().toLocaleString('pt-BR')}
+Data da solicitação: ${new Date().toLocaleString('pt-BR')}
     `;
-    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+  };
+
+  const renderFieldError = (fieldName: string) => {
+    if (errors[fieldName]) {
+      return (
+        <div className="flex items-center mt-1 text-red-600 text-sm">
+          <AlertCircle className="w-4 h-4 mr-1" />
+          {errors[fieldName]}
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
         <div className="bg-gradient-to-r from-green-500 to-green-600 p-6">
           <div className="flex items-center space-x-3">
             <Monitor className="w-8 h-8 text-white" />
-            <div>
-              <h2 className="text-2xl font-bold text-white">Demonstração de Produtos</h2>
-              <p className="text-green-100">Agendamento de apresentações técnicas e demonstrações</p>
-            </div>
+            <h2 className="text-2xl font-bold text-white">Solicitação de Demonstração</h2>
           </div>
         </div>
 
-        <div className="p-8">
-          <div className="space-y-8">
-            {/* Dados do Cliente */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2 flex items-center">
-                <Users className="w-5 h-5 mr-2" />
-                Dados do Cliente
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
-                  <input
-                    type="text"
-                    name="nomeCliente"
-                    value={formData.nomeCliente}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Empresa/Instituição *</label>
-                  <input
-                    type="text"
-                    name="empresa"
-                    value={formData.empresa}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">CPF/CNPJ</label>
-                  <input
-                    type="text"
-                    name="cpfCnpj"
-                    value={formData.cpfCnpj}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Telefone Principal *</label>
-                  <input
-                    type="tel"
-                    name="telefone1"
-                    value={formData.telefone1}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Telefone Alternativo</label>
-                  <input
-                    type="tel"
-                    name="telefone2"
-                    value={formData.telefone2}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Responsável pela Demonstração</label>
-                  <input
-                    type="text"
-                    name="responsavel"
-                    value={formData.responsavel}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Cargo/Função</label>
-                  <input
-                    type="text"
-                    name="cargo"
-                    value={formData.cargo}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
+        <form className="p-8 space-y-8">
+          {/* Dados do Cliente */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-green-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Dados do Cliente</h3>
             </div>
-
-            {/* Endereço */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                Endereço da Empresa
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
-                  <input
-                    type="text"
-                    name="endereco"
-                    value={formData.endereco}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Número</label>
-                  <input
-                    type="text"
-                    name="numero"
-                    value={formData.numero}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">CEP</label>
-                  <input
-                    type="text"
-                    name="cep"
-                    value={formData.cep}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
-                  <input
-                    type="text"
-                    name="bairro"
-                    value={formData.bairro}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
-                  <input
-                    type="text"
-                    name="cidade"
-                    value={formData.cidade}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
-                  <select
-                    name="estado"
-                    value={formData.estado}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="SP">São Paulo</option>
-                    <option value="RJ">Rio de Janeiro</option>
-                    <option value="MG">Minas Gerais</option>
-                    <option value="RS">Rio Grande do Sul</option>
-                    <option value="PR">Paraná</option>
-                    <option value="SC">Santa Catarina</option>
-                    <option value="BA">Bahia</option>
-                    <option value="GO">Goiás</option>
-                    <option value="PE">Pernambuco</option>
-                    <option value="CE">Ceará</option>
-                  </select>
-                </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nome/Razão Social *
+                </label>
+                <input
+                  type="text"
+                  name="nomeCliente"
+                  value={formData.nomeCliente}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                    errors.nomeCliente ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Digite o nome ou razão social"
+                />
+                {renderFieldError('nomeCliente')}
               </div>
-            </div>
 
-            {/* Dados da Demonstração */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2 flex items-center">
-                <Monitor className="w-5 h-5 mr-2" />
-                Dados da Demonstração
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Equipamento de Interesse *</label>
-                  <select
-                    name="equipamentoInteresse"
-                    value={formData.equipamentoInteresse}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Selecione o equipamento...</option>
-                    <option value="LABGEO PT1000">LABGEO PT1000</option>
-                    <option value="LABGEO PT3000">LABGEO PT3000</option>
-                    <option value="LABGEO PT1000 VET">LABGEO PT1000 VET</option>
-                    <option value="LABGEO PT3000 VET">LABGEO PT3000 VET</option>
-                    <option value="LABGEO MINI">LABGEO MINI</option>
-                    <option value="LABGEO ULTRA">LABGEO ULTRA</option>
-                    <option value="Linha Completa">Linha Completa de Produtos</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Finalidade *</label>
-                  <select
-                    name="finalidade"
-                    value={formData.finalidade}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Selecione a finalidade...</option>
-                    <option value="Avaliação para Compra">Avaliação para Compra</option>
-                    <option value="Conhecimento do Produto">Conhecimento do Produto</option>
-                    <option value="Comparação Técnica">Comparação Técnica</option>
-                    <option value="Treinamento Técnico">Treinamento Técnico</option>
-                    <option value="Apresentação Comercial">Apresentação Comercial</option>
-                    <option value="Outros">Outros</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Demonstração *</label>
-                  <select
-                    name="tipoDemo"
-                    value={formData.tipoDemo}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Selecione o tipo...</option>
-                    <option value="Presencial no Cliente">Presencial no Cliente</option>
-                    <option value="Presencial na Empresa">Presencial na Empresa</option>
-                    <option value="Online/Virtual">Online/Virtual</option>
-                    <option value="Feira/Evento">Feira/Evento</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Localização</label>
-                  <input
-                    type="text"
-                    name="localizacao"
-                    value={formData.localizacao}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Local específico da demonstração"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  CPF/CNPJ *
+                </label>
+                <input
+                  type="text"
+                  name="cpfCnpj"
+                  value={formData.cpfCnpj}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                    errors.cpfCnpj ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  maxLength={18}
+                />
+                {renderFieldError('cpfCnpj')}
               </div>
-            </div>
 
-            {/* Agendamento */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2 flex items-center">
-                <Calendar className="w-5 h-5 mr-2" />
-                Agendamento
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Data Desejada</label>
-                  <input
-                    type="date"
-                    name="dataDesejada"
-                    value={formData.dataDesejada}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Horário de Preferência</label>
-                  <select
-                    name="horarioPreferencia"
-                    value={formData.horarioPreferencia}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Manhã (08:00 - 12:00)">Manhã (08:00 - 12:00)</option>
-                    <option value="Tarde (13:00 - 17:00)">Tarde (13:00 - 17:00)</option>
-                    <option value="Comercial (08:00 - 18:00)">Comercial (08:00 - 18:00)</option>
-                    <option value="Indiferente">Indiferente</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Duração Estimada</label>
-                  <select
-                    name="duracaoEstimada"
-                    value={formData.duracaoEstimada}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="30 minutos">30 minutos</option>
-                    <option value="1 hora">1 hora</option>
-                    <option value="1,5 horas">1,5 horas</option>
-                    <option value="2 horas">2 horas</option>
-                    <option value="Meio período">Meio período</option>
-                    <option value="Período integral">Período integral</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Número de Participantes</label>
-                  <input
-                    type="number"
-                    name="numeroParticipantes"
-                    value={formData.numeroParticipantes}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    min="1"
-                    max="50"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Telefone Principal *
+                </label>
+                <input
+                  type="tel"
+                  name="telefone1"
+                  value={formData.telefone1}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                    errors.telefone1 ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+                {renderFieldError('telefone1')}
               </div>
-            </div>
 
-            {/* Detalhes Adicionais */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                Detalhes Adicionais
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Recursos Necessários</label>
-                  <textarea
-                    name="recursos"
-                    value={formData.recursos}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Descreva recursos necessários (projetor, internet, energia elétrica, etc.)"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Objetivos da Demonstração</label>
-                  <textarea
-                    name="objetivos"
-                    value={formData.objetivos}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Quais são os principais objetivos e expectativas com esta demonstração?"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Observações Gerais</label>
-                  <textarea
-                    name="observacoes"
-                    value={formData.observacoes}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Informações adicionais relevantes..."
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Telefone Secundário
+                </label>
+                <input
+                  type="tel"
+                  name="telefone2"
+                  value={formData.telefone2}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                    errors.telefone2 ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+                {renderFieldError('telefone2')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                    errors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="exemplo@email.com"
+                />
+                {renderFieldError('email')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Responsável
+                </label>
+                <input
+                  type="text"
+                  name="responsavel"
+                  value={formData.responsavel}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Nome do responsável"
+                />
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-gray-50 px-8 py-6 flex flex-wrap gap-4 justify-center">
-          <button
-            onClick={handleSave}
-            className="flex items-center space-x-2 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors shadow-md"
-          >
-            <Save className="w-5 h-5" />
-            <span>Agendar Demonstração</span>
-          </button>
-          <button
-            onClick={handleClear}
-            className="flex items-center space-x-2 bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition-colors shadow-md"
-          >
-            <RotateCcw className="w-5 h-5" />
-            <span>Limpar Campos</span>
-          </button>
-          <button
-            onClick={handleEmail}
-            className="flex items-center space-x-2 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors shadow-md"
-          >
-            <Mail className="w-5 h-5" />
-            <span>Enviar por Email</span>
-          </button>
-        </div>
+          {/* Endereço */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-blue-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Endereço</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  CEP
+                </label>
+                <input
+                  type="text"
+                  name="cep"
+                  value={formData.cep}
+                  onChange={handleInputChange}
+                  onBlur={handleCepBlur}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                    errors.cep ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="00000-000"
+                  maxLength={9}
+                />
+                {renderFieldError('cep')}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Endereço
+                </label>
+                <input
+                  type="text"
+                  name="endereco"
+                  value={formData.endereco}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Rua, Avenida, etc."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número
+                </label>
+                <input
+                  type="text"
+                  name="numero"
+                  value={formData.numero}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="123"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Bairro
+                </label>
+                <input
+                  type="text"
+                  name="bairro"
+                  value={formData.bairro}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Nome do bairro"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cidade
+                </label>
+                <input
+                  type="text"
+                  name="cidade"
+                  value={formData.cidade}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Nome da cidade"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Estado
+                </label>
+                <select
+                  name="estado"
+                  value={formData.estado}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Selecione</option>
+                  <option value="AC">Acre</option>
+                  <option value="AL">Alagoas</option>
+                  <option value="AP">Amapá</option>
+                  <option value="AM">Amazonas</option>
+                  <option value="BA">Bahia</option>
+                  <option value="CE">Ceará</option>
+                  <option value="DF">Distrito Federal</option>
+                  <option value="ES">Espírito Santo</option>
+                  <option value="GO">Goiás</option>
+                  <option value="MA">Maranhão</option>
+                  <option value="MT">Mato Grosso</option>
+                  <option value="MS">Mato Grosso do Sul</option>
+                  <option value="MG">Minas Gerais</option>
+                  <option value="PA">Pará</option>
+                  <option value="PB">Paraíba</option>
+                  <option value="PR">Paraná</option>
+                  <option value="PE">Pernambuco</option>
+                  <option value="PI">Piauí</option>
+                  <option value="RJ">Rio de Janeiro</option>
+                  <option value="RN">Rio Grande do Norte</option>
+                  <option value="RS">Rio Grande do Sul</option>
+                  <option value="RO">Rondônia</option>
+                  <option value="RR">Roraima</option>
+                  <option value="SC">Santa Catarina</option>
+                  <option value="SP">São Paulo</option>
+                  <option value="SE">Sergipe</option>
+                  <option value="TO">Tocantins</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Equipamento */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-orange-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Dados do Equipamento</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Modelo *
+                </label>
+                <select
+                  name="modelo"
+                  value={formData.modelo}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                    errors.modelo ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Selecione o modelo</option>
+                  {equipmentModels.map(model => (
+                    <option key={model} value={model}>{model}</option>
+                  ))}
+                  <option value="OUTROS">OUTROS</option>
+                </select>
+                {renderFieldError('modelo')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Série *
+                </label>
+                <input
+                  type="text"
+                  name="numeroSerie"
+                  value={formData.numeroSerie}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                    errors.numeroSerie ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Número de série do equipamento"
+                />
+                {renderFieldError('numeroSerie')}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Motivo da Demonstração *
+                </label>
+                <select
+                  name="motivo"
+                  value={formData.motivo}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                    errors.motivo ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Selecione o motivo</option>
+                  <option value="Interesse em Compra">Interesse em Compra</option>
+                  <option value="Avaliação Técnica">Avaliação Técnica</option>
+                  <option value="Comparação com Concorrente">Comparação com Concorrente</option>
+                  <option value="Treinamento da Equipe">Treinamento da Equipe</option>
+                  <option value="Teste de Funcionalidades">Teste de Funcionalidades</option>
+                  <option value="Outros">Outros</option>
+                </select>
+                {renderFieldError('motivo')}
+              </div>
+            </div>
+          </div>
+
+          {/* Detalhes da Demonstração */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-purple-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalhes da Demonstração</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Data Preferencial
+                </label>
+                <input
+                  type="date"
+                  name="dataDemo"
+                  value={formData.dataDemo}
+                  onChange={handleInputChange}
+                  min={new Date().toISOString().split('T')[0]}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                    errors.dataDemo ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {renderFieldError('dataDemo')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Duração Estimada
+                </label>
+                <select
+                  name="duracao"
+                  value={formData.duracao}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Selecione</option>
+                  <option value="1 hora">1 hora</option>
+                  <option value="2 horas">2 horas</option>
+                  <option value="Meio período">Meio período</option>
+                  <option value="Período integral">Período integral</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Participantes
+                </label>
+                <input
+                  type="number"
+                  name="participantes"
+                  value={formData.participantes}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Ex: 5"
+                  min="1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Observações
+                </label>
+                <textarea
+                  name="observacoes"
+                  value={formData.observacoes}
+                  onChange={handleInputChange}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Observações adicionais..."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Anexos */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-red-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Anexos</h3>
+            </div>
+            
+            <AttachmentButton 
+              onAttachmentsChange={setAttachments}
+              maxFiles={5}
+              maxSizePerFile={10}
+            />
+          </div>
+
+          {/* Botões de Ação */}
+          <div className="flex flex-wrap gap-4 pt-6 border-t">
+            <button
+              type="button"
+              onClick={clearForm}
+              className="flex items-center space-x-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              <Trash2 className="w-5 h-5" />
+              <span>Limpar</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={saveForm}
+              className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Save className="w-5 h-5" />
+              <span>Salvar</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={sendEmail}
+              disabled={isSubmitting}
+              className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+            >
+              <Send className="w-5 h-5" />
+              <span>{isSubmitting ? 'Enviando...' : 'Enviar Email'}</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

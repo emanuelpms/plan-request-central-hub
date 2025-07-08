@@ -1,531 +1,763 @@
+import React, { useState, useEffect } from 'react';
+import { Key, Save, Send, Trash2, AlertCircle } from 'lucide-react';
+import { AttachmentButton } from '../AttachmentButton';
+import { 
+  validateCPFOrCNPJ, 
+  formatCPFOrCNPJ, 
+  formatPhone, 
+  formatCEP,
+  validateEmail,
+  validatePhone,
+  validateCEP
+} from '../../utils/validations';
 
-import React, { useState } from 'react';
-import { Save, Mail, RotateCcw, Key, Lock, Shield } from 'lucide-react';
+interface FormData {
+  id: string;
+  type: string;
+  data: any;
+  createdAt: string;
+}
 
-export const PasswordForm: React.FC = () => {
+interface PasswordFormProps {
+  editingData?: FormData | null;
+  onClearEdit?: () => void;
+}
+
+interface FormErrors {
+  [key: string]: string;
+}
+
+interface AttachmentFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  dataUrl: string;
+}
+
+export const PasswordForm: React.FC<PasswordFormProps> = ({ editingData, onClearEdit }) => {
   const [formData, setFormData] = useState({
+    // Dados do Cliente
     nomeCliente: '',
-    empresa: '',
     cpfCnpj: '',
     telefone1: '',
     telefone2: '',
     email: '',
     responsavel: '',
-    cargo: '',
+    // Endereço
+    cep: '',
     endereco: '',
     numero: '',
     bairro: '',
     cidade: '',
     estado: '',
-    cep: '',
-    equipamento: '',
-    serial: '',
+    // Equipamento
+    modelo: '',
+    numeroSerie: '',
+    motivo: '',
+    descricao: '',
+    // Específicos da Licença
     tipoLicenca: '',
+    quantidadeLicencas: '',
     versaoSoftware: '',
-    modulos: '',
-    numeroUsuarios: '',
-    tipoUso: '',
-    prazoUso: '',
-    finalidade: '',
-    observacoes: '',
-    urgencia: '',
-    dataDesejada: ''
+    dataVencimento: '',
+    observacoes: ''
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [equipmentModels, setEquipmentModels] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const savedModels = JSON.parse(localStorage.getItem('miniescopo_models') || '[]');
+    const modelNames = savedModels.map((m: any) => m.name);
+    setEquipmentModels(modelNames);
+
+    if (editingData && editingData.type === 'password') {
+      setFormData(editingData.data);
+      if (onClearEdit) onClearEdit();
+    }
+  }, [editingData, onClearEdit]);
+
+  const validateField = (name: string, value: any): string => {
+    switch (name) {
+      case 'nomeCliente':
+        return !value?.trim() ? 'Nome/Razão Social é obrigatório' : '';
+      case 'cpfCnpj':
+        if (!value?.trim()) return 'CPF/CNPJ é obrigatório';
+        if (!validateCPFOrCNPJ(value)) return 'CPF/CNPJ inválido';
+        return '';
+      case 'telefone1':
+        if (!value?.trim()) return 'Telefone principal é obrigatório';
+        if (!validatePhone(value)) return 'Telefone inválido';
+        return '';
+      case 'telefone2':
+        if (value?.trim() && !validatePhone(value)) return 'Telefone inválido';
+        return '';
+      case 'email':
+        if (value?.trim() && !validateEmail(value)) return 'Email inválido';
+        return '';
+      case 'cep':
+        if (value?.trim() && !validateCEP(value)) return 'CEP inválido';
+        return '';
+      case 'modelo':
+        return !value?.trim() ? 'Modelo é obrigatório' : '';
+      case 'numeroSerie':
+        return !value?.trim() ? 'Número de série é obrigatório' : '';
+      case 'motivo':
+        return !value?.trim() ? 'Motivo é obrigatório' : '';
+      case 'tipoLicenca':
+        return !value?.trim() ? 'Tipo de licença é obrigatório' : '';
+      case 'quantidadeLicencas':
+        if (!value?.trim()) return 'Quantidade é obrigatória';
+        if (parseInt(value) <= 0) return 'Quantidade deve ser maior que zero';
+        return '';
+      default:
+        return '';
+    }
   };
 
-  const handleSave = () => {
-    const forms = JSON.parse(localStorage.getItem('miniescopo_forms') || '[]');
-    const newForm = {
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+    
+    Object.keys(formData).forEach(key => {
+      const error = validateField(key, formData[key as keyof typeof formData]);
+      if (error) newErrors[key] = error;
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    let formattedValue = value;
+
+    if (name === 'cpfCnpj') {
+      formattedValue = formatCPFOrCNPJ(value);
+    } else if (name === 'telefone1' || name === 'telefone2') {
+      formattedValue = formatPhone(value);
+    } else if (name === 'cep') {
+      formattedValue = formatCEP(value);
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: formattedValue
+    }));
+
+    const error = validateField(name, formattedValue);
+    setErrors(prev => ({
+      ...prev,
+      [name]: error
+    }));
+  };
+
+  const buscarCEP = async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, '');
+    if (cleanCep.length !== 8) return;
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      
+      if (!data.erro) {
+        setFormData(prev => ({
+          ...prev,
+          endereco: data.logradouro || '',
+          bairro: data.bairro || '',
+          cidade: data.localidade || '',
+          estado: data.uf || ''
+        }));
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+    }
+  };
+
+  const handleCepBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    buscarCEP(e.target.value);
+  };
+
+  const clearForm = () => {
+    setFormData({
+      nomeCliente: '',
+      cpfCnpj: '',
+      telefone1: '',
+      telefone2: '',
+      email: '',
+      responsavel: '',
+      cep: '',
+      endereco: '',
+      numero: '',
+      bairro: '',
+      cidade: '',
+      estado: '',
+      modelo: '',
+      numeroSerie: '',
+      motivo: '',
+      descricao: '',
+      tipoLicenca: '',
+      quantidadeLicencas: '',
+      versaoSoftware: '',
+      dataVencimento: '',
+      observacoes: ''
+    });
+    setErrors({});
+    setAttachments([]);
+  };
+
+  const saveForm = () => {
+    if (!validateForm()) {
+      alert('Por favor, corrija os erros no formulário antes de salvar.');
+      return;
+    }
+
+    const savedForms = JSON.parse(localStorage.getItem('miniescopo_forms') || '[]');
+    const formRecord = {
       id: Date.now().toString(),
       type: 'password',
-      data: formData,
-      createdAt: new Date().toISOString(),
-      status: 'Em Análise'
+      data: { ...formData, attachments },
+      createdAt: new Date().toISOString()
     };
-    forms.push(newForm);
-    localStorage.setItem('miniescopo_forms', JSON.stringify(forms));
-    alert('Solicitação de Licença salva com sucesso!');
+
+    savedForms.push(formRecord);
+    localStorage.setItem('miniescopo_forms', JSON.stringify(savedForms));
+    
+    alert('Formulário salvo com sucesso!');
   };
 
-  const handleClear = () => {
-    setFormData({
-      nomeCliente: '', empresa: '', cpfCnpj: '', telefone1: '', telefone2: '', email: '', responsavel: '', cargo: '',
-      endereco: '', numero: '', bairro: '', cidade: '', estado: '', cep: '',
-      equipamento: '', serial: '', tipoLicenca: '', versaoSoftware: '', modulos: '', numeroUsuarios: '',
-      tipoUso: '', prazoUso: '', finalidade: '', observacoes: '', urgencia: '', dataDesejada: ''
-    });
+  const sendEmail = async () => {
+    if (!validateForm()) {
+      alert('Por favor, corrija os erros no formulário antes de enviar.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const emailConfigs = JSON.parse(localStorage.getItem('miniescopo_email_configs') || '[]');
+      const passwordConfig = emailConfigs.find((config: any) => config.formType === 'password');
+      
+      const toEmails = passwordConfig?.toEmails?.join(';') || '';
+      const ccEmails = passwordConfig?.ccEmails?.join(';') || '';
+      
+      const subject = `[MINIESCOPO] Solicitação de Licença - ${formData.nomeCliente}`;
+      const body = generateEmailBody();
+      
+      const mailtoUrl = `mailto:${toEmails}${ccEmails ? `?cc=${ccEmails}` : '?'}${ccEmails ? '&' : ''}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      
+      window.open(mailtoUrl);
+      saveForm();
+      
+      alert('Email aberto no cliente padrão!');
+    } catch (error) {
+      alert('Erro ao enviar email');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleEmail = () => {
-    const subject = `Solicitação de Licença - ${formData.nomeCliente}`;
-    const body = `
-SOLICITAÇÃO DE LICENÇA E ATIVAÇÃO
+  const generateEmailBody = (): string => {
+    return `
+SOLICITAÇÃO DE LICENÇA
 
 === DADOS DO CLIENTE ===
-Nome: ${formData.nomeCliente}
-Empresa: ${formData.empresa}
+Nome/Razão Social: ${formData.nomeCliente}
 CPF/CNPJ: ${formData.cpfCnpj}
 Telefone Principal: ${formData.telefone1}
-Telefone Alternativo: ${formData.telefone2}
-Email: ${formData.email}
-Responsável: ${formData.responsavel}
-Cargo: ${formData.cargo}
+${formData.telefone2 ? `Telefone Secundário: ${formData.telefone2}` : ''}
+${formData.email ? `Email: ${formData.email}` : ''}
+${formData.responsavel ? `Responsável: ${formData.responsavel}` : ''}
 
 === ENDEREÇO ===
-${formData.endereco}, ${formData.numero}
-Bairro: ${formData.bairro}
-Cidade: ${formData.cidade} - ${formData.estado}
-CEP: ${formData.cep}
+${formData.cep ? `CEP: ${formData.cep}` : ''}
+${formData.endereco ? `Endereço: ${formData.endereco}${formData.numero ? `, ${formData.numero}` : ''}` : ''}
+${formData.bairro ? `Bairro: ${formData.bairro}` : ''}
+${formData.cidade && formData.estado ? `Cidade: ${formData.cidade} - ${formData.estado}` : ''}
 
 === EQUIPAMENTO ===
-Modelo: ${formData.equipamento}
-Serial: ${formData.serial}
-Versão do Software: ${formData.versaoSoftware}
+Modelo: ${formData.modelo}
+Número de Série: ${formData.numeroSerie}
+Motivo: ${formData.motivo}
+${formData.descricao ? `Descrição: ${formData.descricao}` : ''}
 
-=== LICENÇA SOLICITADA ===
+=== DETALHES DA LICENÇA ===
 Tipo de Licença: ${formData.tipoLicenca}
-Módulos/Funcionalidades: ${formData.modulos}
-Número de Usuários: ${formData.numeroUsuarios}
-Tipo de Uso: ${formData.tipoUso}
-Prazo de Uso: ${formData.prazoUso}
-Urgência: ${formData.urgencia}
-Data Desejada: ${formData.dataDesejada}
+Quantidade: ${formData.quantidadeLicencas}
+${formData.versaoSoftware ? `Versão do Software: ${formData.versaoSoftware}` : ''}
+${formData.dataVencimento ? `Data de Vencimento: ${new Date(formData.dataVencimento).toLocaleDateString('pt-BR')}` : ''}
+${formData.observacoes ? `Observações: ${formData.observacoes}` : ''}
 
-=== FINALIDADE ===
-${formData.finalidade}
+${attachments.length > 0 ? `=== ANEXOS ===
+${attachments.map(att => `- ${att.name} (${(att.size / 1024 / 1024).toFixed(2)} MB)`).join('\n')}` : ''}
 
-=== OBSERVAÇÕES ===
-${formData.observacoes}
-
----
-Sistema MiniEscopo V4.9
-Data da Solicitação: ${new Date().toLocaleString('pt-BR')}
+Data da solicitação: ${new Date().toLocaleString('pt-BR')}
     `;
-    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+  };
+
+  const renderFieldError = (fieldName: string) => {
+    if (errors[fieldName]) {
+      return (
+        <div className="flex items-center mt-1 text-red-600 text-sm">
+          <AlertCircle className="w-4 h-4 mr-1" />
+          {errors[fieldName]}
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-        <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-6">
+        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 p-6">
           <div className="flex items-center space-x-3">
             <Key className="w-8 h-8 text-white" />
-            <div>
-              <h2 className="text-2xl font-bold text-white">Licenças e Ativação</h2>
-              <p className="text-orange-100">Solicitação de passwords, licenças e ativação de funcionalidades</p>
-            </div>
+            <h2 className="text-2xl font-bold text-white">Solicitação de Licença</h2>
           </div>
         </div>
 
-        <div className="p-8">
-          <div className="space-y-8">
-            {/* Dados do Cliente */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2 flex items-center">
-                <Shield className="w-5 h-5 mr-2" />
-                Dados do Cliente
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
-                  <input
-                    type="text"
-                    name="nomeCliente"
-                    value={formData.nomeCliente}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Empresa/Instituição *</label>
-                  <input
-                    type="text"
-                    name="empresa"
-                    value={formData.empresa}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">CPF/CNPJ *</label>
-                  <input
-                    type="text"
-                    name="cpfCnpj"
-                    value={formData.cpfCnpj}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Telefone Principal *</label>
-                  <input
-                    type="tel"
-                    name="telefone1"
-                    value={formData.telefone1}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Telefone Alternativo</label>
-                  <input
-                    type="tel"
-                    name="telefone2"
-                    value={formData.telefone2}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Responsável pela Licença</label>
-                  <input
-                    type="text"
-                    name="responsavel"
-                    value={formData.responsavel}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Cargo/Função</label>
-                  <input
-                    type="text"
-                    name="cargo"
-                    value={formData.cargo}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
+        <form className="p-8 space-y-8">
+          {/* Dados do Cliente */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-yellow-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Dados do Cliente</h3>
             </div>
-
-            {/* Endereço */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                Endereço da Empresa
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
-                  <input
-                    type="text"
-                    name="endereco"
-                    value={formData.endereco}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Número</label>
-                  <input
-                    type="text"
-                    name="numero"
-                    value={formData.numero}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">CEP</label>
-                  <input
-                    type="text"
-                    name="cep"
-                    value={formData.cep}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
-                  <input
-                    type="text"
-                    name="bairro"
-                    value={formData.bairro}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
-                  <input
-                    type="text"
-                    name="cidade"
-                    value={formData.cidade}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
-                  <select
-                    name="estado"
-                    value={formData.estado}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="SP">São Paulo</option>
-                    <option value="RJ">Rio de Janeiro</option>
-                    <option value="MG">Minas Gerais</option>
-                    <option value="RS">Rio Grande do Sul</option>
-                    <option value="PR">Paraná</option>
-                    <option value="SC">Santa Catarina</option>
-                    <option value="BA">Bahia</option>
-                    <option value="GO">Goiás</option>
-                    <option value="PE">Pernambuco</option>
-                    <option value="CE">Ceará</option>
-                  </select>
-                </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nome/Razão Social *
+                </label>
+                <input
+                  type="text"
+                  name="nomeCliente"
+                  value={formData.nomeCliente}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 ${
+                    errors.nomeCliente ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Digite o nome ou razão social"
+                />
+                {renderFieldError('nomeCliente')}
               </div>
-            </div>
 
-            {/* Dados do Equipamento */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2 flex items-center">
-                <Lock className="w-5 h-5 mr-2" />
-                Dados do Equipamento/Software
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Equipamento *</label>
-                  <select
-                    name="equipamento"
-                    value={formData.equipamento}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Selecione o equipamento...</option>
-                    <option value="LABGEO PT1000">LABGEO PT1000</option>
-                    <option value="LABGEO PT3000">LABGEO PT3000</option>
-                    <option value="LABGEO PT1000 VET">LABGEO PT1000 VET</option>
-                    <option value="LABGEO PT3000 VET">LABGEO PT3000 VET</option>
-                    <option value="LABGEO MINI">LABGEO MINI</option>
-                    <option value="LABGEO ULTRA">LABGEO ULTRA</option>
-                    <option value="Software Apenas">Software Apenas</option>
-                    <option value="Outros">Outros</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Número Serial</label>
-                  <input
-                    type="text"
-                    name="serial"
-                    value={formData.serial}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Versão do Software Atual</label>
-                  <input
-                    type="text"
-                    name="versaoSoftware"
-                    value={formData.versaoSoftware}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Ex: v4.8.2"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  CPF/CNPJ *
+                </label>
+                <input
+                  type="text"
+                  name="cpfCnpj"
+                  value={formData.cpfCnpj}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 ${
+                    errors.cpfCnpj ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  maxLength={18}
+                />
+                {renderFieldError('cpfCnpj')}
               </div>
-            </div>
 
-            {/* Dados da Licença */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                Dados da Licença Solicitada
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Licença *</label>
-                  <select
-                    name="tipoLicenca"
-                    value={formData.tipoLicenca}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Licença Completa">Licença Completa</option>
-                    <option value="Licença Temporária">Licença Temporária</option>
-                    <option value="Licença de Demonstração">Licença de Demonstração</option>
-                    <option value="Upgrade de Licença">Upgrade de Licença</option>
-                    <option value="Renovação de Licença">Renovação de Licença</option>
-                    <option value="Licença Educacional">Licença Educacional</option>
-                    <option value="Licença Corporativa">Licença Corporativa</option>
-                    <option value="Outros">Outros</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Número de Usuários</label>
-                  <select
-                    name="numeroUsuarios"
-                    value={formData.numeroUsuarios}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="1 usuário">1 usuário</option>
-                    <option value="2-5 usuários">2-5 usuários</option>
-                    <option value="6-10 usuários">6-10 usuários</option>
-                    <option value="11-25 usuários">11-25 usuários</option>
-                    <option value="26-50 usuários">26-50 usuários</option>
-                    <option value="51-100 usuários">51-100 usuários</option>
-                    <option value="Mais de 100 usuários">Mais de 100 usuários</option>
-                    <option value="Ilimitado">Ilimitado</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Uso</label>
-                  <select
-                    name="tipoUso"
-                    value={formData.tipoUso}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Comercial">Comercial</option>
-                    <option value="Educacional">Educacional</option>
-                    <option value="Pesquisa">Pesquisa</option>
-                    <option value="Governo">Governo</option>
-                    <option value="Demonstração">Demonstração</option>
-                    <option value="Teste/Avaliação">Teste/Avaliação</option>
-                    <option value="Outros">Outros</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Prazo de Uso</label>
-                  <select
-                    name="prazoUso"
-                    value={formData.prazoUso}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="30 dias">30 dias</option>
-                    <option value="60 dias">60 dias</option>
-                    <option value="90 dias">90 dias</option>
-                    <option value="6 meses">6 meses</option>
-                    <option value="1 ano">1 ano</option>
-                    <option value="2 anos">2 anos</option>
-                    <option value="3 anos">3 anos</option>
-                    <option value="Permanente">Permanente</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Urgência *</label>
-                  <select
-                    name="urgencia"
-                    value={formData.urgencia}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Baixa">Baixa</option>
-                    <option value="Normal">Normal</option>
-                    <option value="Alta">Alta</option>
-                    <option value="Urgente">Urgente</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Data Desejada</label>
-                  <input
-                    type="date"
-                    name="dataDesejada"
-                    value={formData.dataDesejada}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Telefone Principal *
+                </label>
+                <input
+                  type="tel"
+                  name="telefone1"
+                  value={formData.telefone1}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 ${
+                    errors.telefone1 ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+                {renderFieldError('telefone1')}
               </div>
-            </div>
 
-            {/* Módulos e Funcionalidades */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                Módulos e Funcionalidades
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Módulos/Funcionalidades Desejadas</label>
-                  <textarea
-                    name="modulos"
-                    value={formData.modulos}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Liste os módulos ou funcionalidades específicas que precisam ser ativadas..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Finalidade da Licença</label>
-                  <textarea
-                    name="finalidade"
-                    value={formData.finalidade}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Descreva qual será a finalidade de uso da licença..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Observações Gerais</label>
-                  <textarea
-                    name="observacoes"
-                    value={formData.observacoes}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Informações adicionais relevantes para a solicitação de licença..."
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Telefone Secundário
+                </label>
+                <input
+                  type="tel"
+                  name="telefone2"
+                  value={formData.telefone2}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 ${
+                    errors.telefone2 ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+                {renderFieldError('telefone2')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 ${
+                    errors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="exemplo@email.com"
+                />
+                {renderFieldError('email')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Responsável
+                </label>
+                <input
+                  type="text"
+                  name="responsavel"
+                  value={formData.responsavel}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  placeholder="Nome do responsável"
+                />
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-gray-50 px-8 py-6 flex flex-wrap gap-4 justify-center">
-          <button
-            onClick={handleSave}
-            className="flex items-center space-x-2 bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition-colors shadow-md"
-          >
-            <Save className="w-5 h-5" />
-            <span>Solicitar Licença</span>
-          </button>
-          <button
-            onClick={handleClear}
-            className="flex items-center space-x-2 bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition-colors shadow-md"
-          >
-            <RotateCcw className="w-5 h-5" />
-            <span>Limpar Campos</span>
-          </button>
-          <button
-            onClick={handleEmail}
-            className="flex items-center space-x-2 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors shadow-md"
-          >
-            <Mail className="w-5 h-5" />
-            <span>Enviar por Email</span>
-          </button>
-        </div>
+          {/* Endereço */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-orange-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Endereço</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  CEP
+                </label>
+                <input
+                  type="text"
+                  name="cep"
+                  value={formData.cep}
+                  onChange={handleInputChange}
+                  onBlur={handleCepBlur}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 ${
+                    errors.cep ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="00000-000"
+                  maxLength={9}
+                />
+                {renderFieldError('cep')}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Endereço
+                </label>
+                <input
+                  type="text"
+                  name="endereco"
+                  value={formData.endereco}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  placeholder="Rua, Avenida, etc."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número
+                </label>
+                <input
+                  type="text"
+                  name="numero"
+                  value={formData.numero}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  placeholder="123"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Bairro
+                </label>
+                <input
+                  type="text"
+                  name="bairro"
+                  value={formData.bairro}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  placeholder="Nome do bairro"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cidade
+                </label>
+                <input
+                  type="text"
+                  name="cidade"
+                  value={formData.cidade}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  placeholder="Nome da cidade"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Estado
+                </label>
+                <select
+                  name="estado"
+                  value={formData.estado}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                >
+                  <option value="">Selecione</option>
+                  <option value="AC">Acre</option>
+                  <option value="AL">Alagoas</option>
+                  <option value="AP">Amapá</option>
+                  <option value="AM">Amazonas</option>
+                  <option value="BA">Bahia</option>
+                  <option value="CE">Ceará</option>
+                  <option value="DF">Distrito Federal</option>
+                  <option value="ES">Espírito Santo</option>
+                  <option value="GO">Goiás</option>
+                  <option value="MA">Maranhão</option>
+                  <option value="MT">Mato Grosso</option>
+                  <option value="MS">Mato Grosso do Sul</option>
+                  <option value="MG">Minas Gerais</option>
+                  <option value="PA">Pará</option>
+                  <option value="PB">Paraíba</option>
+                  <option value="PR">Paraná</option>
+                  <option value="PE">Pernambuco</option>
+                  <option value="PI">Piauí</option>
+                  <option value="RJ">Rio de Janeiro</option>
+                  <option value="RN">Rio Grande do Norte</option>
+                  <option value="RS">Rio Grande do Sul</option>
+                  <option value="RO">Rondônia</option>
+                  <option value="RR">Roraima</option>
+                  <option value="SC">Santa Catarina</option>
+                  <option value="SP">São Paulo</option>
+                  <option value="SE">Sergipe</option>
+                  <option value="TO">Tocantins</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Dados do Equipamento */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-green-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Dados do Equipamento</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Modelo *
+                </label>
+                <select
+                  name="modelo"
+                  value={formData.modelo}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 ${
+                    errors.modelo ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Selecione o modelo</option>
+                  {equipmentModels.map(model => (
+                    <option key={model} value={model}>{model}</option>
+                  ))}
+                  <option value="OUTROS">OUTROS</option>
+                </select>
+                {renderFieldError('modelo')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Série *
+                </label>
+                <input
+                  type="text"
+                  name="numeroSerie"
+                  value={formData.numeroSerie}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 ${
+                    errors.numeroSerie ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Número de série do equipamento"
+                />
+                {renderFieldError('numeroSerie')}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Motivo da Solicitação *
+                </label>
+                <select
+                  name="motivo"
+                  value={formData.motivo}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 ${
+                    errors.motivo ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Selecione o motivo</option>
+                  <option value="Nova Licença">Nova Licença</option>
+                  <option value="Renovação de Licença">Renovação de Licença</option>
+                  <option value="Upgrade de Licença">Upgrade de Licença</option>
+                  <option value="Outros">Outros</option>
+                </select>
+                {renderFieldError('motivo')}
+              </div>
+            </div>
+          </div>
+
+          {/* Detalhes da Licença */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-orange-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalhes da Licença</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de Licença *
+                </label>
+                <select
+                  name="tipoLicenca"
+                  value={formData.tipoLicenca}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 ${
+                    errors.tipoLicenca ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Selecione</option>
+                  <option value="Licença Permanente">Licença Permanente</option>
+                  <option value="Licença Temporária">Licença Temporária</option>
+                  <option value="Licença de Avaliação">Licença de Avaliação</option>
+                  <option value="Renovação">Renovação</option>
+                  <option value="Upgrade">Upgrade</option>
+                </select>
+                {renderFieldError('tipoLicenca')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantidade de Licenças *
+                </label>
+                <input
+                  type="number"
+                  name="quantidadeLicencas"
+                  value={formData.quantidadeLicencas}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 ${
+                    errors.quantidadeLicencas ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Ex: 1"
+                  min="1"
+                />
+                {renderFieldError('quantidadeLicencas')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Versão do Software
+                </label>
+                <input
+                  type="text"
+                  name="versaoSoftware"
+                  value={formData.versaoSoftware}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  placeholder="Ex: v2.1.0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Data de Vencimento
+                </label>
+                <input
+                  type="date"
+                  name="dataVencimento"
+                  value={formData.dataVencimento}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Observações
+                </label>
+                <textarea
+                  name="observacoes"
+                  value={formData.observacoes}
+                  onChange={handleInputChange}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  placeholder="Informações adicionais sobre a licença..."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Anexos */}
+          <div className="space-y-6">
+            <div className="border-l-4 border-red-500 pl-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Anexos</h3>
+            </div>
+            
+            <AttachmentButton 
+              onAttachmentsChange={setAttachments}
+              maxFiles={5}
+              maxSizePerFile={10}
+            />
+          </div>
+
+          {/* Botões de Ação */}
+          <div className="flex flex-wrap gap-4 pt-6 border-t">
+            <button
+              type="button"
+              onClick={clearForm}
+              className="flex items-center space-x-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              <Trash2 className="w-5 h-5" />
+              <span>Limpar</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={saveForm}
+              className="flex items-center space-x-2 px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+            >
+              <Save className="w-5 h-5" />
+              <span>Salvar</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={sendEmail}
+              disabled={isSubmitting}
+              className="flex items-center space-x-2 px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors disabled:opacity-50"
+            >
+              <Send className="w-5 h-5" />
+              <span>{isSubmitting ? 'Enviando...' : 'Enviar Email'}</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
