@@ -41,14 +41,28 @@ export const ConfigPage: React.FC = () => {
     const savedEmails = JSON.parse(localStorage.getItem('miniescopo_email_configs') || '[]');
     
     if (savedModels.length === 0) {
-      // Modelos padrão
+      // Modelos Samsung padrão
       const defaultModels = [
-        { id: '1', name: 'LABGEO PT1000', category: 'Humano' },
-        { id: '2', name: 'LABGEO PT3000', category: 'Humano' },
-        { id: '3', name: 'LABGEO PT1000 VET', category: 'Veterinário' },
-        { id: '4', name: 'LABGEO PT3000 VET', category: 'Veterinário' },
-        { id: '5', name: 'LABGEO EASY', category: 'Ambos' },
-        { id: '6', name: 'LABGEO MICRO', category: 'Ambos' },
+        { id: '1', name: 'Samsung HS40', category: 'Geral' },
+        { id: '2', name: 'Samsung HS50', category: 'Geral' },
+        { id: '3', name: 'Samsung HS70', category: 'Cardiologia' },
+        { id: '4', name: 'Samsung HS80', category: 'Cardiologia' },
+        { id: '5', name: 'Samsung RS80', category: 'Premium' },
+        { id: '6', name: 'Samsung RS85 Prestige', category: 'Premium' },
+        { id: '7', name: 'Samsung WS80A', category: 'Portátil' },
+        { id: '8', name: 'Samsung PT60A', category: 'Portátil' },
+        { id: '9', name: 'Samsung V7', category: 'Veterinário' },
+        { id: '10', name: 'Samsung V8', category: 'Veterinário' },
+        { id: '11', name: 'Samsung MySono U6', category: 'Portátil' },
+        { id: '12', name: 'Samsung MySono U5', category: 'Portátil' },
+        { id: '13', name: 'Samsung HM70A', category: 'Portátil' },
+        { id: '14', name: 'Samsung A30', category: 'Básico' },
+        { id: '15', name: 'Samsung E-CUBE 15', category: 'Cardiologia' },
+        { id: '16', name: 'Samsung UGEO H60', category: 'Geral' },
+        { id: '17', name: 'Samsung UGEO WS80A', category: 'Obstétrico' },
+        { id: '18', name: 'Samsung SonoAce X8', category: 'Geral' },
+        { id: '19', name: 'Samsung SonoAce X6', category: 'Geral' },
+        { id: '20', name: 'Samsung Accuvix A30', category: 'Básico' },
       ];
       setModels(defaultModels);
       localStorage.setItem('miniescopo_models', JSON.stringify(defaultModels));
@@ -392,9 +406,13 @@ export const ConfigPage: React.FC = () => {
                   onChange={(e) => setModelForm(prev => ({ ...prev, category: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="Humano">Humano</option>
+                  <option value="Básico">Básico</option>
+                  <option value="Geral">Geral</option>
+                  <option value="Cardiologia">Cardiologia</option>
+                  <option value="Obstétrico">Obstétrico</option>
                   <option value="Veterinário">Veterinário</option>
-                  <option value="Ambos">Ambos</option>
+                  <option value="Portátil">Portátil</option>
+                  <option value="Premium">Premium</option>
                 </select>
               </div>
             </div>

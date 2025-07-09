@@ -375,7 +375,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
                   value={formData.serial}
                   onChange={handleChange}
                   required
+                  maxLength={15}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Máximo 15 caracteres"
                 />
               </div>
               <div className="md:col-span-2">
