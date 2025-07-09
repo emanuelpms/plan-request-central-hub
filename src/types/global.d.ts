@@ -7,6 +7,12 @@ declare global {
       showConfig: () => void;
       saveConfig: (config: any) => void;
     };
+    EmailService: {
+      sendEmail: (formData: any, formType: string, motivo: string) => Promise<void>;
+      getEmailConfig: (formType: string) => any;
+      generateEmailBody: (formData: any, formType: string, motivo: string) => string;
+      createEmailFile: (formData: any, formType: string, motivo: string) => void;
+    };
   }
 }
 

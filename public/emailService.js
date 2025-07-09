@@ -221,9 +221,32 @@ const EmailService = {
     async sendEmail(formData, formType, motivo) {
         try {
             // Get email configuration
-            const config = this.getEmailConfig(formType);
+            let config = this.getEmailConfig(formType);
+            
+            // Se não há configuração, usar padrão
             if (!config) {
-                throw new Error('Configuração de email não encontrada para este tipo de formulário');
+                const defaultConfigs = {
+                    'SERVICE': {
+                        toEmails: ['servico@samsung.com'],
+                        ccEmails: ['backoffice@samsung.com'],
+                        customMessage: 'Nova solicitação de serviço técnico:'
+                    },
+                    'DEMONSTRACAO': {
+                        toEmails: ['demo@samsung.com'],
+                        ccEmails: ['vendas@samsung.com'],
+                        customMessage: 'Nova solicitação de demonstração:'
+                    },
+                    'APLICACAO': {
+                        toEmails: ['aplicacao@samsung.com'],
+                        ccEmails: ['suporte@samsung.com'],
+                        customMessage: 'Nova solicitação de aplicação:'
+                    }
+                };
+                
+                config = defaultConfigs[formType];
+                if (!config) {
+                    throw new Error('Tipo de formulário não reconhecido');
+                }
             }
 
             // Generate email content

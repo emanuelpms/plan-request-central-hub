@@ -1,7 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Wrench, Calendar, AlertTriangle } from 'lucide-react';
 
-export const ServiceForm = () => {
+interface FormData {
+  id: string;
+  type: string;
+  data: any;
+  createdAt: string;
+}
+
+interface ServiceFormProps {
+  editingData?: FormData | null;
+  onClearEdit?: () => void;
+}
+
+export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEdit }) => {
   const [formData, setFormData] = useState({
     razaoSocial: '',
     cpfCnpj: '',
@@ -26,6 +38,29 @@ export const ServiceForm = () => {
     urgente: false
   });
 
+  // Configurar email config padrão quando o componente monta
+  useEffect(() => {
+    const defaultConfig = {
+      SERVICE: {
+        toEmails: ['servico@samsung.com'],
+        ccEmails: ['backoffice@samsung.com'],
+        customMessage: 'Nova solicitação de serviço técnico:'
+      }
+    };
+    
+    const existingConfig = localStorage.getItem('miniescopo_email_config');
+    if (!existingConfig) {
+      localStorage.setItem('miniescopo_email_config', JSON.stringify(defaultConfig));
+    }
+  }, []);
+
+  // Carregar dados para edição
+  useEffect(() => {
+    if (editingData && editingData.type === 'service') {
+      setFormData(editingData.data);
+    }
+  }, [editingData]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -33,29 +68,70 @@ export const ServiceForm = () => {
     console.log('Dados do formulário:', formData);
     
     try {
-      // Verificar se o emailService está disponível
-      console.log('Verificando emailService...', typeof window.emailService);
+      // Verificar se o EmailService está disponível
+      console.log('Verificando EmailService...', typeof window.EmailService);
       
-      if (typeof window.emailService === 'undefined') {
-        console.error('emailService não está disponível');
-        alert('Serviço de email não está disponível. Verifique se o emailService.js foi carregado.');
+      if (typeof window.EmailService === 'undefined') {
+        console.error('EmailService não está disponível');
+        // Aguardar um pouco e tentar novamente
+        setTimeout(async () => {
+          if (typeof window.EmailService !== 'undefined') {
+            await window.EmailService.sendEmail(formData, 'SERVICE', formData.motivo);
+            console.log('Email enviado com sucesso após aguardar');
+            
+            // Continuar com o resto do fluxo
+            const savedForms = JSON.parse(localStorage.getItem('miniescopo_forms') || '[]');
+            const newForm = {
+              id: Date.now().toString(),
+              type: 'service',
+              data: formData,
+              createdAt: new Date().toISOString()
+            };
+            savedForms.push(newForm);
+            localStorage.setItem('miniescopo_forms', JSON.stringify(savedForms));
+            
+            alert('Solicitação de serviço enviada com sucesso!');
+            
+            if (onClearEdit) {
+              onClearEdit();
+            }
+            
+            setFormData({
+              razaoSocial: '',
+              cpfCnpj: '',
+              telefone1: '',
+              telefone2: '',
+              email: '',
+              responsavel: '',
+              cep: '',
+              endereco: '',
+              numero: '',
+              bairro: '',
+              cidade: '',
+              estado: '',
+              modelo: '',
+              serial: '',
+              motivo: '',
+              descricao: '',
+              usoEquipamento: '',
+              modeloImpressora: '',
+              modeloNobreak: '',
+              dataPreferencial: '',
+              urgente: false
+            });
+          } else {
+            alert('Serviço de email não está carregado. Recarregue a página e tente novamente.');
+          }
+        }, 1000);
         return;
       }
 
-      // Verificar se está configurado
-      console.log('Verificando configuração...', window.emailService.isConfigured());
+      // Verificar se está configurado - assumindo que tem configuração padrão
+      console.log('Enviando email via EmailService...');
       
-      if (!window.emailService.isConfigured()) {
-        console.error('emailService não está configurado');
-        alert('Configure o sistema de email antes de enviar. Acesse Configurações > Email.');
-        return;
-      }
-
-      console.log('Enviando email...');
-      
-      // Enviar usando o emailService
-      const result = await window.emailService.sendFormEmail(formData, 'service');
-      console.log('Resultado do envio:', result);
+      // Enviar usando o EmailService
+      await window.EmailService.sendEmail(formData, 'SERVICE', formData.motivo);
+      console.log('Email enviado com sucesso');
       
       // Salvar no localStorage
       const savedForms = JSON.parse(localStorage.getItem('miniescopo_forms') || '[]');
@@ -71,7 +147,11 @@ export const ServiceForm = () => {
       console.log('Formulário salvo no localStorage');
       alert('Solicitação de serviço enviada com sucesso!');
       
-      // Limpar formulário
+      // Limpar formulário ou limpar edição
+      if (onClearEdit) {
+        onClearEdit();
+      }
+      
       setFormData({
         razaoSocial: '',
         cpfCnpj: '',
@@ -396,6 +476,15 @@ export const ServiceForm = () => {
           </div>
 
           <div className="flex justify-end space-x-4 pt-6 border-t">
+            {editingData && onClearEdit && (
+              <button
+                type="button"
+                onClick={onClearEdit}
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancelar Edição
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setFormData({
@@ -429,7 +518,7 @@ export const ServiceForm = () => {
               type="submit"
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              Enviar Solicitação
+              {editingData ? 'Salvar Alterações' : 'Enviar Solicitação'}
             </button>
           </div>
         </form>
