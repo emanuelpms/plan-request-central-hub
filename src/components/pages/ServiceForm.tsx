@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Wrench, Calendar, AlertTriangle } from 'lucide-react';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
 
 interface FormData {
   id: string;
@@ -14,6 +15,7 @@ interface ServiceFormProps {
 }
 
 export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEdit }) => {
+  const { getCurrentUserId } = useCurrentUser();
   const [formData, setFormData] = useState({
     razaoSocial: '',
     cpfCnpj: '',
@@ -85,7 +87,8 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
               id: Date.now().toString(),
               type: 'service',
               data: formData,
-              createdAt: new Date().toISOString()
+              createdAt: new Date().toISOString(),
+              createdBy: getCurrentUserId()
             };
             savedForms.push(newForm);
             localStorage.setItem('miniescopo_forms', JSON.stringify(savedForms));
@@ -139,7 +142,8 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
         id: Date.now().toString(),
         type: 'service',
         data: formData,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        createdBy: getCurrentUserId()
       };
       savedForms.push(newForm);
       localStorage.setItem('miniescopo_forms', JSON.stringify(savedForms));

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Key, Save, Send, Trash2, AlertCircle } from 'lucide-react';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { AttachmentButton } from '../AttachmentButton';
 import { 
   validateCPFOrCNPJ, 
@@ -36,6 +37,7 @@ interface AttachmentFile {
 }
 
 export const PasswordForm: React.FC<PasswordFormProps> = ({ editingData, onClearEdit }) => {
+  const { getCurrentUserId } = useCurrentUser();
   const [formData, setFormData] = useState({
     // Dados do Cliente
     nomeCliente: '',
@@ -219,7 +221,8 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({ editingData, onClear
       id: Date.now().toString(),
       type: 'password',
       data: { ...formData, attachments },
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      createdBy: getCurrentUserId()
     };
 
     savedForms.push(formRecord);
@@ -1001,6 +1004,7 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({ editingData, onClear
                     errors.numeroSerie ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Número de série do equipamento"
+                  maxLength={15}
                 />
                 {renderFieldError('numeroSerie')}
               </div>

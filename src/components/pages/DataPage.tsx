@@ -12,17 +12,26 @@ interface FormData {
 
 interface DataPageProps {
   onEditForm?: (formData: FormData) => void;
+  userRole?: string;
+  representativeId?: string;
 }
 
-export const DataPage: React.FC<DataPageProps> = ({ onEditForm }) => {
+export const DataPage: React.FC<DataPageProps> = ({ onEditForm, userRole, representativeId }) => {
   const [forms, setForms] = useState<FormData[]>([]);
   const [selectedForm, setSelectedForm] = useState<FormData | null>(null);
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     const savedForms = JSON.parse(localStorage.getItem('miniescopo_forms') || '[]');
-    setForms(savedForms);
-  }, []);
+    
+    // Filtrar formulários baseado no tipo de usuário
+    let filteredForms = savedForms;
+    if (userRole === 'representante' && representativeId) {
+      filteredForms = savedForms.filter((form: FormData) => form.createdBy === representativeId);
+    }
+    
+    setForms(filteredForms);
+  }, [userRole, representativeId]);
 
   const deleteForm = (id: string) => {
     if (confirm('Tem certeza que deseja excluir este formulário?')) {

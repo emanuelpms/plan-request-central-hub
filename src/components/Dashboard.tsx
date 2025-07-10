@@ -66,8 +66,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       case 'install':
         return <InstallForm editingData={editingForm} onClearEdit={clearEditingForm} />;
       case 'data':
-        return user?.role === 'admin' ? 
-          <DataPage onEditForm={handleEditForm} /> : 
+        return (user?.role === 'admin' || user?.role === 'samsung' || user?.role === 'callcenter' || user?.role === 'representante') ? 
+          <DataPage onEditForm={handleEditForm} userRole={user.role} representativeId={user.representativeId} /> : 
           <div className="text-red-500">Acesso negado</div>;
       case 'config':
         return user?.role === 'admin' ? 

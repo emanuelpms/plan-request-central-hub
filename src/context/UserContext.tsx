@@ -4,8 +4,9 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 export interface User {
   username: string;
   name: string;
-  role: 'admin' | 'tecnico' | 'vendedor';
+  role: 'admin' | 'samsung' | 'callcenter' | 'representante';
   permissions: string[];
+  representativeId?: string; // Para identificar representantes
 }
 
 interface UserContextType {

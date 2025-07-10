@@ -24,7 +24,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
     { id: 'app' as Tab, label: 'Aplicação', icon: FileText, show: hasPermission('app') },
     { id: 'password' as Tab, label: 'Licenças', icon: Key, show: hasPermission('password') },
     { id: 'install' as Tab, label: 'Instalação', icon: Download, show: true },
-    { id: 'data' as Tab, label: 'Dados', icon: Database, show: user?.role === 'admin' },
+    { id: 'data' as Tab, label: 'Dados', icon: Database, show: user?.role === 'admin' || user?.role === 'samsung' || user?.role === 'callcenter' || user?.role === 'representante' },
     { id: 'config' as Tab, label: 'Configurações', icon: Settings, show: user?.role === 'admin' },
   ];
 

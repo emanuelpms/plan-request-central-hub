@@ -4,9 +4,12 @@ import { Eye, EyeOff, Shield, User, Lock } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 
 const USERS = {
-  admin: { password: 'admin123', name: 'Administrador', role: 'admin' as const, permissions: ['all'] },
-  tecnico: { password: 'tec123', name: 'Técnico', role: 'tecnico' as const, permissions: ['service', 'data'] },
-  vendas: { password: 'vendas123', name: 'Vendedor', role: 'vendedor' as const, permissions: ['demo', 'app'] }
+  admin: { password: 'admin123', name: 'Administrador do Sistema', role: 'admin' as const, permissions: ['all'] },
+  samsung: { password: 'samsung123', name: 'Time Samsung', role: 'samsung' as const, permissions: ['all'] },
+  callcenter: { password: 'call123', name: 'Call Center', role: 'callcenter' as const, permissions: ['service', 'demo', 'app', 'password', 'install'] },
+  rep1: { password: 'rep123', name: 'Representante São Paulo', role: 'representante' as const, permissions: ['service', 'demo', 'app', 'password', 'install'], representativeId: 'rep1' },
+  rep2: { password: 'rep123', name: 'Representante Rio de Janeiro', role: 'representante' as const, permissions: ['service', 'demo', 'app', 'password', 'install'], representativeId: 'rep2' },
+  rep3: { password: 'rep123', name: 'Representante Minas Gerais', role: 'representante' as const, permissions: ['service', 'demo', 'app', 'password', 'install'], representativeId: 'rep3' }
 };
 
 interface LoginScreenProps {
@@ -35,7 +38,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         username,
         name: user.name,
         role: user.role,
-        permissions: user.permissions
+        permissions: user.permissions,
+        ...('representativeId' in user && user.representativeId ? { representativeId: user.representativeId } : {})
       };
       setUser(userData);
       localStorage.setItem('miniescopo_auth', JSON.stringify(userData));
@@ -121,9 +125,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           <div className="mt-8 p-4 bg-white/5 rounded-lg border border-white/10">
             <h4 className="text-white/90 font-medium mb-3 text-sm">Usuários de Acesso:</h4>
             <div className="space-y-2 text-xs text-white/70">
-              <div><strong>Admin:</strong> admin / admin123</div>
-              <div><strong>Técnico:</strong> tecnico / tec123</div>
-              <div><strong>Vendedor:</strong> vendas / vendas123</div>
+              <div><strong>Administrador:</strong> admin / admin123</div>
+              <div><strong>Time Samsung:</strong> samsung / samsung123</div>
+              <div><strong>Call Center:</strong> callcenter / call123</div>
+              <div><strong>Representantes:</strong> rep1, rep2, rep3 / rep123</div>
             </div>
           </div>
         </div>

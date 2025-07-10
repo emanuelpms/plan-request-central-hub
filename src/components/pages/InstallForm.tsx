@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Save, Send, Trash2, AlertCircle } from 'lucide-react';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { AttachmentButton } from '../AttachmentButton';
 import { 
   validateCPFOrCNPJ, 
@@ -36,6 +37,7 @@ interface AttachmentFile {
 }
 
 export const InstallForm: React.FC<InstallFormProps> = ({ editingData, onClearEdit }) => {
+  const { getCurrentUserId } = useCurrentUser();
   const [formData, setFormData] = useState({
     // Dados do Cliente
     nomeCliente: '',
@@ -223,7 +225,8 @@ export const InstallForm: React.FC<InstallFormProps> = ({ editingData, onClearEd
       id: Date.now().toString(),
       type: 'install',
       data: { ...formData, attachments },
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      createdBy: getCurrentUserId()
     };
 
     savedForms.push(formRecord);
@@ -601,6 +604,7 @@ Data da solicitação: ${new Date().toLocaleString('pt-BR')}
                     errors.numeroSerie ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Número de série do equipamento"
+                  maxLength={15}
                 />
                 {renderFieldError('numeroSerie')}
               </div>
