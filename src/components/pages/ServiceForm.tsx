@@ -481,12 +481,12 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
             </div>
           </div>
 
-          <div className="flex justify-end space-x-4 pt-6 border-t">
+          <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
             {editingData && onClearEdit && (
               <button
                 type="button"
                 onClick={onClearEdit}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
               >
                 Cancelar Edição
               </button>
@@ -516,15 +516,16 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
                 dataPreferencial: '',
                 urgente: false
               })}
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
             >
-              Limpar
+              Limpar Formulário
             </button>
             <button
               type="submit"
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
             >
-              {editingData ? 'Salvar Alterações' : 'Enviar Solicitação'}
+              <Wrench className="w-5 h-5 inline mr-2" />
+              {editingData ? 'Salvar Alterações' : 'Enviar Solicitação de Serviço'}
             </button>
           </div>
         </form>

@@ -311,9 +311,19 @@ const EmailService = {
                 mailItem.To = toEmails;
                 mailItem.CC = ccEmails;
                 mailItem.Subject = subject;
-                mailItem.HTMLBody = body;
                 
-                mailItem.Display(true);
+                // Preservar assinatura existente do Outlook
+                mailItem.Display(false); // Não mostrar ainda
+                const currentSignature = mailItem.HTMLBody; // Capturar a assinatura atual
+                
+                // Combinar o corpo formatado com a assinatura
+                if (currentSignature && currentSignature.trim()) {
+                    mailItem.HTMLBody = body + '<br><br>' + currentSignature;
+                } else {
+                    mailItem.HTMLBody = body;
+                }
+                
+                mailItem.Display(true); // Agora mostrar com tudo formatado
                 return true;
             }
             return false;
@@ -325,10 +335,13 @@ const EmailService = {
 
     tryMailtoAnchor(toEmails, ccEmails, subject, body) {
         try {
+            // Para mailto, criar uma versão mais compatível mas ainda formatada
+            const plainTextBody = this.convertHtmlToPlainText(body);
+            
             const mailtoLink = `mailto:${toEmails}?` +
                 `cc=${encodeURIComponent(ccEmails)}&` +
                 `subject=${encodeURIComponent(subject)}&` +
-                `body=${encodeURIComponent(body)}`;
+                `body=${encodeURIComponent(plainTextBody)}`;
             
             const link = document.createElement('a');
             link.href = mailtoLink;
@@ -358,6 +371,20 @@ const EmailService = {
         }
     },
 
+    // Converter HTML para texto formatado (fallback para mailto)
+    convertHtmlToPlainText(html) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        
+        // Remover scripts e styles
+        const scripts = tempDiv.querySelectorAll('script, style');
+        scripts.forEach(el => el.remove());
+        
+        // Converter quebras de linha
+        const content = tempDiv.textContent || tempDiv.innerText || '';
+        return content.replace(/\s+/g, ' ').trim();
+    },
+
     // Alternative method: Create .eml file for download
     createEmailFile(formData, formType, motivo) {
         try {
@@ -367,10 +394,11 @@ const EmailService = {
             const serial = formData.serial || 'Serial';
             const subject = `${motivo} - ${cliente} - ${modelo} - ${serial}`;
 
-            // Create .eml file content
+            // Create .eml file content with proper HTML formatting
             const emlContent = `Subject: ${subject}
 MIME-Version: 1.0
 Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
 ${emailBody}`;
 
