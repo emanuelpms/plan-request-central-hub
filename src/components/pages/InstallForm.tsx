@@ -268,39 +268,282 @@ export const InstallForm: React.FC<InstallFormProps> = ({ editingData, onClearEd
 
   const generateEmailBody = (): string => {
     return `
-SOLICITAÇÃO DE INSTALAÇÃO
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitação de Instalação</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px;
+        }
+        .section {
+            margin-bottom: 35px;
+            border-left: 4px solid #6366f1;
+            padding-left: 20px;
+        }
+        .section h2 {
+            color: #1f2937;
+            font-size: 20px;
+            margin: 0 0 20px 0;
+            font-weight: 600;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .info-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .info-value {
+            color: #1f2937;
+            font-size: 16px;
+            word-break: break-word;
+        }
+        .highlight {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border-color: #3b82f6;
+        }
+        .highlight .info-label {
+            color: #1e40af;
+        }
+        .attachments {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .attachments h3 {
+            color: #92400e;
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .attachment-item {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 3px solid #f59e0b;
+        }
+        .footer {
+            background: #f1f5f9;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        .footer p {
+            margin: 5px 0;
+            color: #64748b;
+            font-size: 14px;
+        }
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .content { padding: 20px; }
+            .info-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📥 SOLICITAÇÃO DE INSTALAÇÃO</h1>
+            <p>Miniescopo - Sistema de Gestão</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2>📋 Dados do Cliente</h2>
+                <div class="info-grid">
+                    <div class="info-item highlight">
+                        <div class="info-label">Nome/Razão Social</div>
+                        <div class="info-value">${formData.nomeCliente || 'Não informado'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">CPF/CNPJ</div>
+                        <div class="info-value">${formData.cpfCnpj || 'Não informado'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Telefone Principal</div>
+                        <div class="info-value">${formData.telefone1 || 'Não informado'}</div>
+                    </div>
+                    ${formData.telefone2 ? `
+                    <div class="info-item">
+                        <div class="info-label">Telefone Secundário</div>
+                        <div class="info-value">${formData.telefone2}</div>
+                    </div>
+                    ` : ''}
+                    ${formData.email ? `
+                    <div class="info-item">
+                        <div class="info-label">E-mail</div>
+                        <div class="info-value">${formData.email}</div>
+                    </div>
+                    ` : ''}
+                    ${formData.responsavel ? `
+                    <div class="info-item">
+                        <div class="info-label">Responsável</div>
+                        <div class="info-value">${formData.responsavel}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
 
-=== DADOS DO CLIENTE ===
-Nome/Razão Social: ${formData.nomeCliente}
-CPF/CNPJ: ${formData.cpfCnpj}
-Telefone Principal: ${formData.telefone1}
-${formData.telefone2 ? `Telefone Secundário: ${formData.telefone2}` : ''}
-${formData.email ? `Email: ${formData.email}` : ''}
-${formData.responsavel ? `Responsável: ${formData.responsavel}` : ''}
+            ${formData.cep || formData.endereco || formData.cidade ? `
+            <div class="section">
+                <h2>📍 Endereço</h2>
+                <div class="info-grid">
+                    ${formData.cep ? `
+                    <div class="info-item">
+                        <div class="info-label">CEP</div>
+                        <div class="info-value">${formData.cep}</div>
+                    </div>
+                    ` : ''}
+                    ${formData.endereco ? `
+                    <div class="info-item">
+                        <div class="info-label">Endereço</div>
+                        <div class="info-value">${formData.endereco}${formData.numero ? `, ${formData.numero}` : ''}</div>
+                    </div>
+                    ` : ''}
+                    ${formData.bairro ? `
+                    <div class="info-item">
+                        <div class="info-label">Bairro</div>
+                        <div class="info-value">${formData.bairro}</div>
+                    </div>
+                    ` : ''}
+                    ${formData.cidade && formData.estado ? `
+                    <div class="info-item">
+                        <div class="info-label">Cidade/Estado</div>
+                        <div class="info-value">${formData.cidade} - ${formData.estado}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+            ` : ''}
 
-=== ENDEREÇO ===
-${formData.cep ? `CEP: ${formData.cep}` : ''}
-${formData.endereco ? `Endereço: ${formData.endereco}${formData.numero ? `, ${formData.numero}` : ''}` : ''}
-${formData.bairro ? `Bairro: ${formData.bairro}` : ''}
-${formData.cidade && formData.estado ? `Cidade: ${formData.cidade} - ${formData.estado}` : ''}
+            <div class="section">
+                <h2>🔧 Dados do Equipamento</h2>
+                <div class="info-grid">
+                    <div class="info-item highlight">
+                        <div class="info-label">Modelo</div>
+                        <div class="info-value">${formData.modelo || 'Não informado'}</div>
+                    </div>
+                    <div class="info-item highlight">
+                        <div class="info-label">Número de Série</div>
+                        <div class="info-value">${formData.numeroSerie || 'Não informado'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Motivo da Instalação</div>
+                        <div class="info-value">${formData.motivo || 'Não informado'}</div>
+                    </div>
+                    ${formData.descricao ? `
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <div class="info-label">Descrição</div>
+                        <div class="info-value">${formData.descricao}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
 
-=== EQUIPAMENTO ===
-Modelo: ${formData.modelo}
-Número de Série: ${formData.numeroSerie}
-Motivo: ${formData.motivo}
-${formData.descricao ? `Descrição: ${formData.descricao}` : ''}
+            <div class="section">
+                <h2>📅 Detalhes da Instalação</h2>
+                <div class="info-grid">
+                    <div class="info-item highlight">
+                        <div class="info-label">Tipo de Instalação</div>
+                        <div class="info-value">${formData.tipoInstalacao || 'Não informado'}</div>
+                    </div>
+                    ${formData.dataInstalacao ? `
+                    <div class="info-item">
+                        <div class="info-label">Data Preferencial</div>
+                        <div class="info-value">${new Date(formData.dataInstalacao).toLocaleDateString('pt-BR')}</div>
+                    </div>
+                    ` : ''}
+                    ${formData.horarioPreferencial ? `
+                    <div class="info-item">
+                        <div class="info-label">Horário Preferencial</div>
+                        <div class="info-value">${formData.horarioPreferencial}</div>
+                    </div>
+                    ` : ''}
+                    ${formData.requisitos ? `
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <div class="info-label">Requisitos Especiais</div>
+                        <div class="info-value">${formData.requisitos}</div>
+                    </div>
+                    ` : ''}
+                    ${formData.observacoes ? `
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <div class="info-label">Observações</div>
+                        <div class="info-value">${formData.observacoes}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
 
-=== DETALHES DA INSTALAÇÃO ===
-Tipo de Instalação: ${formData.tipoInstalacao}
-${formData.dataInstalacao ? `Data Preferencial: ${new Date(formData.dataInstalacao).toLocaleDateString('pt-BR')}` : ''}
-${formData.horarioPreferencial ? `Horário Preferencial: ${formData.horarioPreferencial}` : ''}
-${formData.requisitos ? `Requisitos: ${formData.requisitos}` : ''}
-${formData.observacoes ? `Observações: ${formData.observacoes}` : ''}
-
-${attachments.length > 0 ? `=== ANEXOS ===
-${attachments.map(att => `- ${att.name} (${(att.size / 1024 / 1024).toFixed(2)} MB)`).join('\n')}` : ''}
-
-Data da solicitação: ${new Date().toLocaleString('pt-BR')}
+            ${attachments.length > 0 ? `
+            <div class="attachments">
+                <h3>📎 Anexos (${attachments.length})</h3>
+                ${attachments.map(att => `
+                <div class="attachment-item">
+                    <strong>${att.name}</strong> - ${(att.size / 1024 / 1024).toFixed(2)} MB
+                </div>
+                `).join('')}
+            </div>
+            ` : ''}
+        </div>
+        
+        <div class="footer">
+            <p><strong>Data da Solicitação:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+            <p>Sistema Miniescopo - Gestão de Equipamentos Samsung</p>
+        </div>
+    </div>
+</body>
+</html>
     `;
   };
 
@@ -326,7 +569,7 @@ Data da solicitação: ${new Date().toLocaleString('pt-BR')}
           </div>
         </div>
 
-        <form className="p-8 space-y-8">
+        <form onSubmit={sendEmail} className="p-8 space-y-8">
           {/* Dados do Cliente */}
           <div className="space-y-6">
             <div className="border-l-4 border-indigo-500 pl-4">
