@@ -5,6 +5,71 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
+:root {
+  /* Professional Dark Theme - ServiceOne */
+  --background: 210 20% 98%;
+  --foreground: 210 40% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 210 40% 8%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 210 40% 8%;
+  --primary: 210 80% 15%;
+  --primary-foreground: 210 20% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 210 40% 8%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 210 40% 45%;
+  --accent: 210 40% 94%;
+  --accent-foreground: 210 40% 8%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 20% 98%;
+  --border: 210 40% 85%;
+  --input: 210 40% 90%;
+  --ring: 210 80% 15%;
+  --radius: 0.75rem;
+  
+  /* ServiceOne Professional Colors */
+  --service-primary: 210 80% 15%;
+  --service-secondary: 210 60% 25%;
+  --service-accent: 45 93% 47%;
+  --service-success: 142 76% 36%;
+  --service-warning: 33 95% 54%;
+  --service-error: 0 84% 60%;
+  --service-background-dark: 210 30% 8%;
+  --service-surface: 210 25% 12%;
+  --service-surface-light: 210 20% 16%;
+  --service-text-primary: 210 15% 95%;
+  --service-text-secondary: 210 10% 75%;
+  --service-border: 210 15% 25%;
+  
+  /* Professional Gradients */
+  --gradient-primary: linear-gradient(135deg, hsl(var(--service-primary)), hsl(var(--service-secondary)));
+  --gradient-accent: linear-gradient(135deg, hsl(var(--service-accent)), hsl(var(--service-warning)));
+  --gradient-surface: linear-gradient(135deg, hsl(var(--service-surface)), hsl(var(--service-surface-light)));
+}
+
+.dark {
+  --background: 210 30% 8%;
+  --foreground: 210 15% 95%;
+  --card: 210 25% 12%;
+  --card-foreground: 210 15% 95%;
+  --popover: 210 25% 12%;
+  --popover-foreground: 210 15% 95%;
+  --primary: 210 80% 55%;
+  --primary-foreground: 210 20% 98%;
+  --secondary: 210 20% 16%;
+  --secondary-foreground: 210 15% 95%;
+  --muted: 210 20% 16%;
+  --muted-foreground: 210 10% 75%;
+  --accent: 210 20% 20%;
+  --accent-foreground: 210 15% 95%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 15% 95%;
+  --border: 210 15% 25%;
+  --input: 210 20% 16%;
+  --ring: 210 80% 55%;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -13,21 +78,108 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: hsl(var(--service-background-dark));
+  color: hsl(var(--service-text-primary));
   min-height: 100vh;
 }
 
 @layer utilities {
-  .glass {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+  .service-card {
+    background: hsl(var(--service-surface));
+    border: 1px solid hsl(var(--service-border));
+    border-radius: var(--radius);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   }
   
-  .gradient-text {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  .service-button-primary {
+    background: var(--gradient-primary);
+    color: hsl(var(--service-text-primary));
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius);
+    font-weight: 600;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .service-button-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  .service-button-secondary {
+    background: hsl(var(--service-surface-light));
+    color: hsl(var(--service-text-primary));
+    border: 1px solid hsl(var(--service-border));
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius);
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  
+  .service-button-secondary:hover {
+    background: hsl(var(--service-surface));
+    border-color: hsl(var(--service-accent));
+  }
+  
+  .service-input {
+    background: hsl(var(--service-surface));
+    border: 1px solid hsl(var(--service-border));
+    color: hsl(var(--service-text-primary));
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    transition: all 0.2s ease;
+  }
+  
+  .service-input:focus {
+    outline: none;
+    border-color: hsl(var(--service-accent));
+    box-shadow: 0 0 0 2px hsl(var(--service-accent) / 0.2);
+  }
+  
+  .service-label {
+    color: hsl(var(--service-text-secondary));
+    font-weight: 500;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+  
+  .service-title {
+    color: hsl(var(--service-text-primary));
+    font-weight: 700;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .service-subtitle {
+    color: hsl(var(--service-text-secondary));
+    font-weight: 500;
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .service-text {
+    color: hsl(var(--service-text-secondary));
+    line-height: 1.6;
+  }
+  
+  .service-badge {
+    background: hsl(var(--service-accent));
+    color: hsl(var(--service-background-dark));
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  
+  .service-gradient-bg {
+    background: var(--gradient-surface);
+  }
+  
+  .glass {
+    background: rgba(16, 24, 40, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--service-border));
   }
 }
