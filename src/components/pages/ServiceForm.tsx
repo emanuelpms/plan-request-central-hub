@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Wrench, Calendar, AlertTriangle } from 'lucide-react';
+import { Wrench, Send, Save, AlertTriangle, Calendar } from 'lucide-react';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
+import { FormButton } from '../ui/FormButton';
+import { FormField, FormInput, FormTextarea, FormSelect } from '../ui/FormField';
 
 interface FormData {
   id: string;
@@ -483,15 +485,16 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
 
           <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
             {editingData && onClearEdit && (
-              <button
+              <FormButton
                 type="button"
                 onClick={onClearEdit}
-                className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                variant="secondary"
               >
                 Cancelar Edição
-              </button>
+              </FormButton>
             )}
-            <button
+            
+            <FormButton
               type="button"
               onClick={() => setFormData({
                 razaoSocial: '',
@@ -516,17 +519,20 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
                 dataPreferencial: '',
                 urgente: false
               })}
-              className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              variant="secondary"
+              icon={Save}
             >
               Limpar Formulário
-            </button>
-            <button
+            </FormButton>
+            
+            <FormButton
               type="submit"
-              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+              variant="primary"
+              icon={Send}
+              size="lg"
             >
-              <Wrench className="w-5 h-5 inline mr-2" />
               {editingData ? 'Salvar Alterações' : 'Enviar Solicitação de Serviço'}
-            </button>
+            </FormButton>
           </div>
         </form>
       </div>

@@ -10,9 +10,11 @@ import { PasswordForm } from './pages/PasswordForm';
 import { InstallForm } from './pages/InstallForm';
 import { DataPage } from './pages/DataPage';
 import { ConfigPage } from './pages/ConfigPage';
+import { NewsPage } from './pages/NewsPage';
+import { UserManagementPage } from './pages/UserManagementPage';
 import { useUser } from '../context/UserContext';
 
-type Tab = 'menu' | 'service' | 'demo' | 'app' | 'password' | 'install' | 'data' | 'config';
+type Tab = 'menu' | 'service' | 'demo' | 'app' | 'password' | 'install' | 'data' | 'config' | 'news' | 'users';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -72,6 +74,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       case 'config':
         return user?.role === 'admin' ? 
           <ConfigPage /> : 
+          <div className="text-red-500">Acesso negado</div>;
+      case 'news':
+        return user?.role === 'admin' ? 
+          <NewsPage /> : 
+          <div className="text-red-500">Acesso negado</div>;
+      case 'users':
+        return user?.role === 'admin' ? 
+          <UserManagementPage /> : 
           <div className="text-red-500">Acesso negado</div>;
       default:
         return <MenuPage onNavigate={setActiveTab} />;

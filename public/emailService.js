@@ -1,10 +1,16 @@
 
 // Email Service for Microsoft Outlook Integration
-const EmailService = {
+window.EmailService = {
     // Get email configurations from localStorage
     getEmailConfig(formType) {
         const configs = JSON.parse(localStorage.getItem('miniescopo_email_config') || '{}');
         return configs[formType];
+    },
+
+    // Check if service is configured
+    isConfigured() {
+        const configs = JSON.parse(localStorage.getItem('miniescopo_email_config') || '{}');
+        return Object.keys(configs).length > 0;
     },
 
     // Generate HTML email body with exact form layout
@@ -35,19 +41,20 @@ const EmailService = {
 <html>
 <head>
     <meta charset="UTF-8">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f8fafc; }
-        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .header { background: linear-gradient(135deg, ${colors.primary}, ${colors.secondary}); color: white; padding: 30px; text-align: center; }
-        .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
-        .header p { margin: 5px 0 0 0; opacity: 0.9; font-size: 16px; }
-        .section { margin: 20px; }
-        .section-title { background: linear-gradient(135deg, ${colors.primary}, ${colors.secondary}); color: white; padding: 15px; margin: 0 0 20px 0; border-radius: 8px; font-weight: bold; font-size: 16px; }
-        .field-row { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 15px; }
-        .field { flex: 1; min-width: 250px; }
-        .field-label { font-weight: bold; color: #374151; font-size: 12px; margin-bottom: 5px; display: block; }
-        .field-value { background: ${colors.bg}; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb; font-size: 14px; }
-        .full-width { width: 100%; }
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <style type="text/css">
+        body { font-family: Arial, Helvetica, sans-serif !important; margin: 0 !important; padding: 20px !important; background-color: #f8fafc !important; }
+        .container { max-width: 800px !important; margin: 0 auto !important; background: white !important; border-radius: 12px !important; overflow: hidden !important; box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important; }
+        .header { background: linear-gradient(135deg, ${colors.primary}, ${colors.secondary}) !important; color: white !important; padding: 30px !important; text-align: center !important; }
+        .header h1 { margin: 0 !important; font-size: 28px !important; font-weight: bold !important; color: white !important; }
+        .header p { margin: 5px 0 0 0 !important; opacity: 0.9 !important; font-size: 16px !important; color: white !important; }
+        .section { margin: 20px !important; }
+        .section-title { background: linear-gradient(135deg, ${colors.primary}, ${colors.secondary}) !important; color: white !important; padding: 15px !important; margin: 0 0 20px 0 !important; border-radius: 8px !important; font-weight: bold !important; font-size: 16px !important; }
+        .field-row { display: block !important; margin-bottom: 15px !important; }
+        .field { display: block !important; margin-bottom: 10px !important; }
+        .field-label { font-weight: bold !important; color: #374151 !important; font-size: 13px !important; margin-bottom: 5px !important; display: block !important; }
+        .field-value { background: ${colors.bg} !important; padding: 12px !important; border-radius: 6px !important; border: 1px solid #e5e7eb !important; font-size: 14px !important; display: block !important; }
+        .full-width { width: 100% !important; }
         .checkbox-field { display: flex; align-items: center; gap: 8px; }
         .checkbox { width: 16px; height: 16px; }
         .footer { background: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }
@@ -282,23 +289,46 @@ const EmailService = {
         }
     },
 
-    // Multiple methods to open Outlook
+    // Tentar abrir Outlook usando vários métodos
     async openOutlook(toEmails, ccEmails, subject, body) {
-        // Method 1: Try ActiveX for Windows (if available)
-        if (this.tryActiveXOutlook(toEmails, ccEmails, subject, body)) {
-            return true;
+        console.log('Tentando abrir Outlook...');
+        console.log('Configuração:', { toEmails, ccEmails, subject });
+        
+        // Criar arquivo .eml primeiro (será baixado automaticamente)
+        this.createEmailFile({ subject, body, toEmails, ccEmails }, 'EMAIL', subject);
+        
+        // Método 1: Tentar ActiveX (funciona apenas no Windows/IE com Outlook instalado)
+        try {
+            if (this.tryActiveXOutlook(toEmails, ccEmails, subject, body)) {
+                console.log('Email aberto via ActiveX');
+                return true;
+            }
+        } catch (e) {
+            console.warn('ActiveX falhou:', e);
         }
-
-        // Method 2: Try mailto with anchor element
-        if (this.tryMailtoAnchor(toEmails, ccEmails, subject, body)) {
+        
+        // Método 2: Tentar via link direto do Windows
+        try {
+            const outlookUrl = `outlook:?to=${encodeURIComponent(toEmails)}&cc=${encodeURIComponent(ccEmails)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.location.href = outlookUrl;
+            console.log('Tentativa de abertura direta do Outlook');
             return true;
+        } catch (e) {
+            console.warn('Link direto do Outlook falhou:', e);
         }
-
-        // Method 3: Try window.location
-        if (this.tryWindowLocation(toEmails, ccEmails, subject, body)) {
+        
+        // Método 3: Fallback para mailto
+        try {
+            const plainTextBody = this.convertHtmlToPlainText(body);
+            const mailtoLink = `mailto:${toEmails}?cc=${encodeURIComponent(ccEmails)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainTextBody)}`;
+            window.open(mailtoLink, '_blank');
+            console.log('Email aberto via mailto');
             return true;
+        } catch (e) {
+            console.warn('Mailto falhou:', e);
         }
-
+        
+        console.warn('Nenhum método de abertura do Outlook funcionou');
         return false;
     },
 
@@ -385,20 +415,38 @@ const EmailService = {
         return content.replace(/\s+/g, ' ').trim();
     },
 
-    // Alternative method: Create .eml file for download
-    createEmailFile(formData, formType, motivo) {
+    // Create .eml file for download with proper Outlook formatting
+    createEmailFile(emailData, formType, motivo) {
         try {
-            const emailBody = this.generateEmailBody(formData, formType, motivo);
-            const cliente = formData.nomeCliente || formData.razaoSocial || 'Cliente';
-            const modelo = formData.modelo || 'Modelo';
-            const serial = formData.serial || 'Serial';
-            const subject = `${motivo} - ${cliente} - ${modelo} - ${serial}`;
+            let emailBody, subject, toEmails, ccEmails;
+            
+            // Se for dados diretos do email
+            if (emailData.subject && emailData.body) {
+                subject = emailData.subject;
+                emailBody = emailData.body;
+                toEmails = emailData.toEmails || '';
+                ccEmails = emailData.ccEmails || '';
+            } else {
+                // Se for dados do formulário
+                emailBody = this.generateEmailBody(emailData, formType, motivo);
+                const cliente = emailData.nomeCliente || emailData.razaoSocial || 'Cliente';
+                const modelo = emailData.modelo || 'Modelo';
+                const serial = emailData.serial || 'Serial';
+                subject = `${motivo} - ${cliente} - ${modelo} - ${serial}`;
+                
+                const config = this.getEmailConfig(formType);
+                toEmails = config?.toEmails?.join(';') || '';
+                ccEmails = config?.ccEmails?.join(';') || '';
+            }
 
-            // Create .eml file content with proper HTML formatting
-            const emlContent = `Subject: ${subject}
+            // Create proper .eml file content with Outlook headers
+            const emlContent = `To: ${toEmails}
+Cc: ${ccEmails}
+Subject: ${subject}
 MIME-Version: 1.0
 Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 8bit
+X-Mailer: Mini Escopo System
 
 ${emailBody}`;
 
@@ -407,7 +455,7 @@ ${emailBody}`;
             
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${subject}.eml`;
+            a.download = `Solicitacao_${Date.now()}.eml`;
             a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
@@ -416,6 +464,7 @@ ${emailBody}`;
             URL.revokeObjectURL(url);
             
             console.log('Arquivo .eml criado para download');
+            alert('Arquivo de email (.eml) foi baixado! Abra o arquivo para enviar pelo Outlook.');
         } catch (error) {
             console.error('Erro ao criar arquivo de email:', error);
             throw error;

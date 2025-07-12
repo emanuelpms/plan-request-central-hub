@@ -1,16 +1,31 @@
 
-import React from 'react';
-import { Wrench, Monitor, FileText, Key, Download, Database } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Wrench, Monitor, FileText, Key, Download, Database, Bell, User } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 
-type Tab = 'menu' | 'service' | 'demo' | 'app' | 'password' | 'install' | 'data';
+type Tab = 'menu' | 'service' | 'demo' | 'app' | 'password' | 'install' | 'data' | 'news' | 'users';
 
 interface MenuPageProps {
   onNavigate: (tab: Tab) => void;
 }
 
+interface NewsItem {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  createdBy: string;
+}
+
 export const MenuPage: React.FC<MenuPageProps> = ({ onNavigate }) => {
   const { user } = useUser();
+  const [news, setNews] = useState<NewsItem[]>([]);
+
+  // Carregar notícias
+  useEffect(() => {
+    const savedNews = JSON.parse(localStorage.getItem('miniescopo_news') || '[]');
+    setNews(savedNews.slice(0, 3)); // Mostrar apenas as 3 mais recentes
+  }, []);
 
   const hasPermission = (permission: string) => {
     return user?.permissions.includes('all') || user?.permissions.includes(permission);
@@ -63,6 +78,22 @@ export const MenuPage: React.FC<MenuPageProps> = ({ onNavigate }) => {
       description: 'Visualização e gerenciamento de dados administrativos',
       icon: Database,
       color: 'from-gray-500 to-gray-600',
+      show: user?.role === 'admin' || user?.role === 'samsung' || user?.role === 'callcenter' || user?.role === 'representante'
+    },
+    {
+      id: 'news' as Tab,
+      title: 'Notícias',
+      description: 'Gerenciar notícias e comunicados do sistema',
+      icon: Bell,
+      color: 'from-red-500 to-red-600',
+      show: user?.role === 'admin'
+    },
+    {
+      id: 'users' as Tab,
+      title: 'Usuários',
+      description: 'Gerenciar usuários e níveis de acesso',
+      icon: User,
+      color: 'from-teal-500 to-teal-600',
       show: user?.role === 'admin'
     }
   ];
@@ -77,6 +108,24 @@ export const MenuPage: React.FC<MenuPageProps> = ({ onNavigate }) => {
           Selecione uma das opções abaixo para começar
         </p>
       </div>
+
+      {/* Seção de Notícias */}
+      {news.length > 0 && (
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Últimas Notícias</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {news.map((item) => (
+              <div key={item.id} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                <h3 className="font-bold text-gray-900 mb-2">{item.title}</h3>
+                <p className="text-gray-600 text-sm mb-3 line-clamp-3">{item.content}</p>
+                <div className="text-xs text-gray-500">
+                  {new Date(item.createdAt).toLocaleDateString('pt-BR')}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {menuItems.filter(item => item.show).map((item) => {
