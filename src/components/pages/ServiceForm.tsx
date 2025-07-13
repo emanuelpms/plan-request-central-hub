@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Wrench, Send, Save, AlertTriangle, Calendar } from 'lucide-react';
+import { Wrench, Send, Save, AlertTriangle, Calendar, Trash2 } from 'lucide-react';
+import { AttachmentButton } from '../AttachmentButton';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { FormButton } from '../ui/FormButton';
 import { FormField, FormInput, FormTextarea, FormSelect } from '../ui/FormField';
@@ -11,6 +12,14 @@ interface FormData {
   createdAt: string;
 }
 
+interface AttachmentFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  dataUrl: string;
+}
+
 interface ServiceFormProps {
   editingData?: FormData | null;
   onClearEdit?: () => void;
@@ -18,6 +27,8 @@ interface ServiceFormProps {
 
 export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEdit }) => {
   const { getCurrentUserId } = useCurrentUser();
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [equipmentModels, setEquipmentModels] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     razaoSocial: '',
     cpfCnpj: '',
@@ -44,6 +55,11 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
 
   // Configurar email config padrão quando o componente monta
   useEffect(() => {
+    // Carregar modelos de equipamentos
+    const savedModels = JSON.parse(localStorage.getItem('miniescopo_models') || '[]');
+    const modelNames = savedModels.map((m: any) => m.name);
+    setEquipmentModels(modelNames);
+
     const defaultConfig = {
       SERVICE: {
         toEmails: ['servico@samsung.com'],
@@ -62,6 +78,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
   useEffect(() => {
     if (editingData && editingData.type === 'service') {
       setFormData(editingData.data);
+      setAttachments(editingData.data.attachments || []);
     }
   }, [editingData]);
 
@@ -88,7 +105,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
             const newForm = {
               id: Date.now().toString(),
               type: 'service',
-              data: formData,
+              data: { ...formData, attachments },
               createdAt: new Date().toISOString(),
               createdBy: getCurrentUserId()
             };
@@ -143,7 +160,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
       const newForm = {
         id: Date.now().toString(),
         type: 'service',
-        data: formData,
+        data: { ...formData, attachments },
         createdAt: new Date().toISOString(),
         createdBy: getCurrentUserId()
       };
@@ -181,6 +198,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
         dataPreferencial: '',
         urgente: false
       });
+      setAttachments([]);
       
     } catch (error) {
       console.error('Erro completo ao enviar email:', error);
@@ -195,6 +213,19 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
+  };
+
+  const clearForm = () => {
+    setFormData({
+      razaoSocial: '', cpfCnpj: '', telefone1: '', telefone2: '', email: '', responsavel: '',
+      cep: '', endereco: '', numero: '', bairro: '', cidade: '', estado: '',
+      modelo: '', serial: '', motivo: '', descricao: '', usoEquipamento: '',
+      modeloImpressora: '', modeloNobreak: '', dataPreferencial: '', urgente: false
+    });
+    setAttachments([]);
+    if (onClearEdit) {
+      onClearEdit();
+    }
   };
 
   return (
@@ -364,14 +395,19 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Modelo *</label>
-                <input
-                  type="text"
+                <select
                   name="modelo"
                   value={formData.modelo}
                   onChange={handleChange}
                   required
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                >
+                  <option value="">Selecione o modelo</option>
+                  {equipmentModels.map(model => (
+                    <option key={model} value={model}>{model}</option>
+                  ))}
+                  <option value="OUTROS">OUTROS</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Número de Série *</label>
@@ -483,6 +519,16 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
             </div>
           </div>
 
+          {/* Anexos */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Anexos</h3>
+            <AttachmentButton 
+              onAttachmentsChange={setAttachments}
+              maxFiles={5}
+              maxSizePerFile={10}
+            />
+          </div>
+
           <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
             {editingData && onClearEdit && (
               <FormButton
@@ -496,31 +542,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ editingData, onClearEd
             
             <FormButton
               type="button"
-              onClick={() => setFormData({
-                razaoSocial: '',
-                cpfCnpj: '',
-                telefone1: '',
-                telefone2: '',
-                email: '',
-                responsavel: '',
-                cep: '',
-                endereco: '',
-                numero: '',
-                bairro: '',
-                cidade: '',
-                estado: '',
-                modelo: '',
-                serial: '',
-                motivo: '',
-                descricao: '',
-                usoEquipamento: '',
-                modeloImpressora: '',
-                modeloNobreak: '',
-                dataPreferencial: '',
-                urgente: false
-              })}
+              onClick={clearForm}
               variant="secondary"
-              icon={Save}
+              icon={Trash2}
             >
               Limpar Formulário
             </FormButton>
