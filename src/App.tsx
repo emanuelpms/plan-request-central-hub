@@ -3,8 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
 import { UserProvider } from './context/UserContext';
-import { ToastContainer } from './components/ui/Toast';
-import { useToast } from './hooks/useToast';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -42,7 +40,6 @@ function App() {
 
   return (
     <UserProvider>
-      <ToastContainer toasts={[]} onRemove={() => {}} />
       {isAuthenticated ? (
         <Dashboard onLogout={() => {
           setIsAuthenticated(false);
